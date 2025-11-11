@@ -1,10 +1,12 @@
-// --- lib/notification_alerts_page.dart (FINAL FIXED - Added material.dart) ---
+// --- lib/notification_alerts_page.dart (UPDATED with "Liquid Crystal" UI) ---
 
-import 'package:flutter/material.dart'; // <-- **** මේ import එක අනිවාර්යයෙන්ම ඕන ****
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'custom_toast.dart';
+import 'dart:ui'; // For ImageFilter.blur
+import 'package:simple_animations/simple_animations.dart'; // For Background
 
 class NotificationAlertsPage extends StatefulWidget {
   const NotificationAlertsPage({super.key});
@@ -39,9 +41,9 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
       }
     } catch (e) {
       if (mounted) {
-         // Error එකක් ආවත් default values එක්ක load වෙන්න ඉඩ දෙනවා
-         setState(() => _isLoading = false);
-         showCustomToast(context, "Note: Using default settings (Couldn't load saved ones)", isError: true);
+        // On error, still load with default values
+        setState(() => _isLoading = false);
+        showCustomToast(context, "Note: Using default settings (Couldn't load saved ones)", isError: true);
       }
     }
   }
@@ -58,92 +60,206 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
     }
   }
 
+  // --- NEW: "Dark Blue" Animated Background ---
+  Widget _buildAnimatedBackground() {
+    final tween1 = TweenSequence([
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A1931), end: const Color(0xFF182848)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF182848), end: const Color(0xFF00334E)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF00334E), end: const Color(0xFF0A1931)),
+          weight: 1),
+    ]);
+    final tween2 = TweenSequence([
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A2342), end: const Color(0xFF182848)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF182848), end: const Color(0xFF0A1931)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A1931), end: const Color(0xFF0A2342)),
+          weight: 1),
+    ]);
+    return LoopAnimationBuilder<Color?>(
+      tween: tween1,
+      duration: const Duration(seconds: 20),
+      builder: (context, color1, child) {
+        return LoopAnimationBuilder<Color?>(
+          tween: tween2,
+          duration: const Duration(seconds: 25),
+          builder: (context, color2, child) {
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color1 ?? const Color(0xFF0A1931),
+                    const Color(0xFF1A202C),
+                    color2 ?? const Color(0xFF0A2342),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  // --- End of Animated Background ---
+
+  // --- NEW: Glassmorphism Decoration Helper ---
+  BoxDecoration _glassmorphismCardDecoration() {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Colors.white.withOpacity(0.1),
+          Colors.white.withOpacity(0.05),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.2),
+        width: 1,
+      ),
+    );
+  }
+  // --- End of Helper ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A202C),
+      // --- UPDATED: Use transparent background ---
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: Text(
           "Notification Alerts",
-          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontWeight: FontWeight.w600),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.all(24.0),
-                children: [
-                  _buildAlertItem(
-                    title: "Gas Leak Alerts",
-                    value: _gasLeakAlert,
-                    onChanged: (newValue) {
-                      setState(() => _gasLeakAlert = newValue);
-                      _saveSetting('gasLeakAlert', newValue);
-                    },
-                  ),
-                  const Divider(color: Colors.white24, height: 30),
-                  _buildAlertItem(
-                    title: "Low Gas Warning (20%)",
-                    value: _lowGasWarning,
-                    onChanged: (newValue) {
-                      setState(() => _lowGasWarning = newValue);
-                      _saveSetting('lowGasWarning', newValue);
-                    },
-                  ),
-                  const Divider(color: Colors.white24, height: 30),
-                  _buildAlertItem(
-                    title: "Hub is Offline",
-                    value: _hubOfflineAlert,
-                    onChanged: (newValue) {
-                      setState(() => _hubOfflineAlert = newValue);
-                      _saveSetting('hubOfflineAlert', newValue);
-                    },
-                  ),
-                ].animate(interval: 100.ms).fade(duration: 400.ms).slideX(begin: -0.1),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildAlertItem({
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // --- UPDATED: Use Stack for background ---
+      body: Stack(
         children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Transform.scale(
-            scale: 0.9,
-            child: Switch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: Colors.green,
-              inactiveTrackColor: Colors.white.withOpacity(0.1),
-              inactiveThumbColor: Colors.white54,
-              trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
-            ),
+          _buildAnimatedBackground(), // <-- The animation
+
+          // --- UPDATED: Add BackdropFilter for frosted glass effect ---
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : SafeArea(
+                    child: ListView(
+                      padding: const EdgeInsets.all(24.0),
+                      children: [
+                        // --- UPDATED: Using new _buildAlertItem ---
+                        _buildAlertItem(
+                          icon: Icons.error_outline,
+                          iconColor: Colors.red.shade300,
+                          title: "Gas Leak Alerts",
+                          value: _gasLeakAlert,
+                          onChanged: (newValue) {
+                            setState(() => _gasLeakAlert = newValue);
+                            _saveSetting('gasLeakAlert', newValue);
+                          },
+                          delay: 100.ms,
+                        ),
+                        const SizedBox(height: 12), // Replaced Divider
+                        _buildAlertItem(
+                          icon: Icons.opacity_outlined,
+                          iconColor: Colors.orange.shade300,
+                          title: "Low Gas Warning (20%)",
+                          value: _lowGasWarning,
+                          onChanged: (newValue) {
+                            setState(() => _lowGasWarning = newValue);
+                            _saveSetting('lowGasWarning', newValue);
+                          },
+                          delay: 200.ms,
+                        ),
+                        const SizedBox(height: 12), // Replaced Divider
+                        _buildAlertItem(
+                          icon: Icons.wifi_off_outlined,
+                          iconColor: Colors.grey.shade400,
+                          title: "Hub is Offline",
+                          value: _hubOfflineAlert,
+                          onChanged: (newValue) {
+                            setState(() => _hubOfflineAlert = newValue);
+                            _saveSetting('hubOfflineAlert', newValue);
+                          },
+                          delay: 300.ms,
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
+    );
+  }
+
+  // --- UPDATED: Rebuilt as a "Glassmorphism" Card ---
+  Widget _buildAlertItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required Duration delay,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: _glassmorphismCardDecoration(), // Glass effect
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: iconColor, size: 28),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: Transform.scale(
+          scale: 0.9,
+          child: Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.green, // Keep green for 'ON'
+            inactiveTrackColor: Colors.white.withOpacity(0.1),
+            inactiveThumbColor: Colors.white54,
+            trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+          ),
+        ),
+      ),
+    )
+    // --- UPDATED: Smoother Staggered Animation ---
+    .animate()
+    .fadeIn(duration: 400.ms, delay: delay)
+    .slideY(
+      begin: 0.3,
+      duration: 500.ms,
+      delay: delay,
+      curve: Curves.easeOutCubic,
     );
   }
 }

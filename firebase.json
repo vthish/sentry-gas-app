@@ -1,1 +1,9 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"sentry-gas-home","appId":"1:121785143225:android:4f443e7c940f11670df068","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"sentry-gas-home","configurations":{"android":"1:121785143225:android:4f443e7c940f11670df068","ios":"1:121785143225:ios:c096f62868d71e3f0df068","macos":"1:121785143225:ios:c096f62868d71e3f0df068","web":"1:121785143225:web:3587b661e4ce739b0df068","windows":"1:121785143225:web:6dd916e8d08019710df068"}}}}}}
+{
+  "functions": {
+    "source": "functions"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

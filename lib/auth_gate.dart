@@ -1,4 +1,4 @@
-// --- lib/auth_gate.dart (FINAL FIXED - Using Stream) ---
+// --- lib/auth_gate.dart (Code is correct, only comments updated) ---
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +15,7 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 1. User කෙනෙක් ලොග් වී සිටීදැයි බැලීම (Auth State)
+        // 1. Check if user is logged in (Auth State)
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Color(0xFF1A202C),
@@ -24,9 +24,9 @@ class AuthGate extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          // 2. User ලොග් වී ඇත්නම්, ඔහුගේ Hubs මොනවාදැයි එසැණින් බැලීම (Stream)
+          // 2. User is logged in, now check for their Hubs (Stream)
           return StreamBuilder<List<String>>(
-            stream: HubService().streamUserHubs(), // <-- Future වෙනුවට Stream භාවිතා කිරීම
+            stream: HubService().streamUserHubs(), // <-- This relies on HubService
             builder: (context, hubSnapshot) {
               if (hubSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
@@ -35,18 +35,18 @@ class AuthGate extends StatelessWidget {
                 );
               }
 
-              // Hubs තිබේ නම් Dashboard එකට
+              // If Hubs exist, go to Dashboard
               if (hubSnapshot.hasData && hubSnapshot.data!.isNotEmpty) {
                 return MainDashboardPage(hubIds: hubSnapshot.data!);
               }
 
-              // Hubs නැත්නම් Connect Page එකට
+              // If no Hubs, go to Connect Page
               return const ConnectHubPage();
             },
           );
         }
 
-        // 3. User ලොග් වී නැත්නම් Login Page එකට
+        // 3. User is not logged in, go to Login Page
         return const LoginPage();
       },
     );

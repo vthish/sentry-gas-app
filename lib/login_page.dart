@@ -1,16 +1,17 @@
-// --- lib/login_page.dart (FINAL FIXED - 'random' error + Pop-ups) ---
+// --- lib/login_page.dart (UPDATED: Re-added "Enter Phone Number" label) ---
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
-import 'package:flutter_animate/flutter_animate.dart'; 
-import 'package:simple_animations/simple_animations.dart'; 
-import 'dart:math'; // <-- Animated Dots සඳහා
-import 'page_transitions.dart'; 
-import 'connect_hub_page.dart';
-import 'gas_cylinder_icon.dart'; 
-import 'custom_toast.dart'; // <-- අපේ අලුත් Liquid Glass Pop-up
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:simple_animations/simple_animations.dart';
+import 'dart:ui'; // For ImageFilter.blur
+import 'page_transitions.dart';
+import 'auth_gate.dart'; 
+import 'custom_toast.dart';
+// We are not using the custom icon file
+// import 'gas_cylinder_icon.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,17 +29,24 @@ class _LoginPageState extends State<LoginPage> {
   bool _isOtpSent = false;
   bool _isLoading = false;
 
-  // --- Functions (Send OTP, Verify, Sign In) ---
+  // --- Functions (No Changes) ---
   
   Future<void> _sendOtp() async {
     String phoneNumber = _phoneController.text.trim();
     if (phoneNumber.isEmpty) {
-       _showErrorToast("Please enter a phone number."); // <-- Pop-up
-       return;
+        _showErrorToast("Please enter a phone number.");
+        return;
     }
-    if (!phoneNumber.startsWith('+94')) {
+    if (phoneNumber.length == 9 && !phoneNumber.startsWith('+')) {
+      phoneNumber = '+94${phoneNumber.substring(0)}';
+    } 
+    else if (phoneNumber.length == 10 && phoneNumber.startsWith('0')) {
+      phoneNumber = '+94${phoneNumber.substring(1)}';
+    } 
+    else if (!phoneNumber.startsWith('+94')) {
       phoneNumber = '+94$phoneNumber';
     }
+
     setState(() => _isLoading = true);
     try {
       await _auth.verifyPhoneNumber(
@@ -47,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
           await _signIn(credential);
         },
         verificationFailed: (FirebaseAuthException e) {
-          _showErrorToast("Failed to send code: ${e.message}"); // <-- Pop-up
+          _showErrorToast("Failed to send code: ${e.message}");
         },
         codeSent: (String verificationId, int? resendToken) {
           setState(() {
@@ -59,13 +67,13 @@ class _LoginPageState extends State<LoginPage> {
         codeAutoRetrievalTimeout: (String verificationId) {},
       );
     } catch (e) {
-      _showErrorToast(e.toString()); // <-- Pop-up
+      _showErrorToast(e.toString());
     }
   }
 
   Future<void> _verifyOtp() async {
      if (_otpController.text.trim().length < 6) {
-      _showErrorToast("Please enter the 6-digit code."); // <-- Pop-up
+      _showErrorToast("Please enter the 6-digit code.");
       return;
     }
     setState(() => _isLoading = true);
@@ -76,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       await _signIn(credential);
     } catch (e) {
-      _showErrorToast("Invalid OTP. Please try again."); // <-- Pop-up
+      _showErrorToast("Invalid OTP. Please try again.");
     }
   }
 
@@ -84,15 +92,13 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _auth.signInWithCredential(credential);
       if (mounted) {
-        // **** SnackBar එක වෙනුවට අලුත් Pop-up ****
         showCustomToast(context, "Welcome Home! Login Successful."); 
-        
         Navigator.of(context).pushReplacement(
-          FadePageRoute(builder: (context) => const ConnectHubPage()),
+          FadePageRoute(builder: (context) => const AuthGate()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      _showErrorToast("Failed to sign in: ${e.message}"); // <-- Pop-up
+      _showErrorToast("Failed to sign in: ${e.message}");
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -100,51 +106,169 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // **** SnackBar function එක Pop-up function එකෙන් replace කිරීම ****
   void _showErrorToast(String message) {
     if (mounted) {
-      showCustomToast(context, message, isError: true); // <-- Pop-up
+      showCustomToast(context, message, isError: true);
       setState(() => _isLoading = false);
     }
   }
   // --- End of Functions ---
 
 
+  // --- Blue-Only Animated Background (No Change) ---
+  Widget _buildAnimatedBackground() {
+    final tween1 = TweenSequence([
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.blue.shade900,
+          end: Colors.indigo.shade800,
+        ),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.indigo.shade800,
+          end: Colors.cyan.shade900,
+        ),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.cyan.shade900,
+          end: Colors.blue.shade900,
+        ),
+        weight: 1,
+      ),
+    ]);
+
+    final tween2 = TweenSequence([
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.teal.shade900,
+          end: Colors.blue.shade800,
+        ),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.blue.shade800,
+          end: Colors.indigo.shade700,
+        ),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(
+          begin: Colors.indigo.shade700,
+          end: Colors.teal.shade900,
+        ),
+        weight: 1,
+      ),
+    ]);
+
+    return LoopAnimationBuilder<Color?>(
+      tween: tween1,
+      duration: const Duration(seconds: 20),
+      builder: (context, color1, child) {
+        return LoopAnimationBuilder<Color?>(
+          tween: tween2,
+          duration: const Duration(seconds: 25),
+          builder: (context, color2, child) {
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color1 ?? Colors.blue.shade900,
+                    const Color(0xFF1A202C),
+                    color2 ?? Colors.teal.shade900,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  // --- End of Animated Background ---
+
+
   @override
   Widget build(BuildContext context) {
-    final defaultPinTheme = PinTheme(
+    final glassPinTheme = PinTheme(
       width: 56,
       height: 60,
       textStyle: const TextStyle(fontSize: 22, color: Colors.white),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.transparent),
+        borderRadius: BorderRadius.circular(12), // Match TextField
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
     );
 
     return Scaffold(
-      body: Stack( 
+      backgroundColor: const Color(0xFF1A202C),
+      body: Stack(
         children: [
-          const BackgroundParticles(particleCount: 30), 
+          _buildAnimatedBackground(),
           
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(32.0),
-              child: Center(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 60),
-                    GasCylinderIcon(
-                      size: 80,
-                      color: Colors.blue.shade400,
+                    
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                          BoxShadow(
+                            color: Colors.blue.shade900.withOpacity(0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 0),
+                          )
+                        ],
+                      ),
+                      child: ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: [Colors.blue.shade300, Colors.cyan.shade300],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ).createShader(bounds),
+                        child: const Icon(
+                          Icons.propane_tank_outlined,
+                          size: 50,
+                          color: Colors.white,
+                        ),
+                      ),
                     ).animate().fade(delay: 200.ms).scale(duration: 400.ms),
 
                     const SizedBox(height: 20),
 
                     Text(
-                      "Welcome to Sentry Gas",
+                      "Welcome Home",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 32,
@@ -159,18 +283,41 @@ class _LoginPageState extends State<LoginPage> {
                       style: GoogleFonts.inter(fontSize: 16, color: Colors.white70),
                     ).animate().fade(delay: 400.ms),
                     
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 40),
 
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                      child: _isOtpSent
-                          ? _buildOtpForm(defaultPinTheme)
-                          : _buildPhoneForm(),
-                    ),
-                    const SizedBox(height: 60),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20.0),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(24.0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.1),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20.0),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(opacity: animation, child: child);
+                            },
+                            child: _isOtpSent
+                                ? _buildOtpForm(glassPinTheme)
+                                : _buildPhoneForm(),
+                          ),
+                        ),
+                      ),
+                    ).animate().fade(delay: 500.ms).slideY(begin: 0.1),
                   ],
                 ),
               ),
@@ -181,15 +328,18 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // --- UPDATED: Phone Form (Label re-added) ---
   Widget _buildPhoneForm() {
     return Column(
       key: const ValueKey('phoneForm'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // --- THIS IS THE RE-ADDED LABEL ---
         Text(
-          "Enter Your Phone Number",
-          style: GoogleFonts.inter(fontSize: 16, color: Colors.white70),
+          "Enter Phone Number",
+          style: GoogleFonts.inter(fontSize: 16, color: Colors.white),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
@@ -198,165 +348,118 @@ class _LoginPageState extends State<LoginPage> {
             filled: true,
             fillColor: Colors.white.withOpacity(0.1),
             prefixIcon: Padding(
-              padding: const EdgeInsets.all(15.0),
+              padding: const EdgeInsets.fromLTRB(15, 15, 10, 15),
               child: Text(
                 "+94",
-                style: GoogleFonts.inter(fontSize: 18, color: Colors.white),
+                style: GoogleFonts.inter(fontSize: 18, color: Colors.white70),
               ),
             ),
+            // --- UPDATED: Hint text changed back ---
             hintText: "71 123 4567",
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-            border: OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.blue.shade400),
             ),
           ),
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 24),
+        
+        // --- "Glass" Button ---
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
+          height: 50,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.blue.withOpacity(0.2),
+              side: BorderSide(color: Colors.blue.shade400),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: _isLoading ? null : _sendOtp,
             child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text("GET ACCESS CODE"),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                  )
+                : Text(
+                    "GET ACCESS CODE",
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+                  ),
           ),
         ),
       ],
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildOtpForm(PinTheme defaultPinTheme) {
+  // --- OTP Form (No Change) ---
+  Widget _buildOtpForm(PinTheme glassPinTheme) {
     return Column(
       key: const ValueKey('otpForm'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           "Enter 6-Digit Code",
-          style: GoogleFonts.inter(fontSize: 16, color: Colors.white70),
+          style: GoogleFonts.inter(fontSize: 16, color: Colors.white),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Pinput(
           controller: _otpController,
           length: 6,
-          defaultPinTheme: defaultPinTheme,
-          focusedPinTheme: defaultPinTheme.copyWith(
-            decoration: defaultPinTheme.decoration!.copyWith(
-              border: Border.all(color: Colors.blue.shade400),
+          defaultPinTheme: glassPinTheme,
+          focusedPinTheme: glassPinTheme.copyWith(
+            decoration: glassPinTheme.decoration!.copyWith(
+              border: Border.all(color: Colors.blue.shade400, width: 2),
             ),
           ),
           onCompleted: (pin) => _verifyOtp(),
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
+          height: 50,
           child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade400,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: _isLoading ? null : _verifyOtp,
             child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text("VERIFY & SIGN IN"),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                  )
+                : Text(
+                    "VERIFY & SIGN IN",
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+                  ),
           ),
         ),
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _isOtpSent = false;
-              _isLoading = false;
-            });
-          },
-          child: const Text(
-            "Use a different phone number?",
-            style: TextStyle(color: Colors.white70),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              setState(() {
+                _isOtpSent = false;
+                _isLoading = false;
+              });
+            },
+            child: const Text(
+              "Use a different phone number?",
+              style: TextStyle(color: Colors.white70, decoration: TextDecoration.underline),
+            ),
           ),
         )
       ],
     ).animate().fadeIn(duration: 300.ms);
-  }
-}
-
-// --- BACKGROUND ANIMATED DOTS WIDGET (NEW & FIXED) ---
-
-class BackgroundParticles extends StatelessWidget {
-  final int particleCount;
-  const BackgroundParticles({super.key, this.particleCount = 30});
-
-  @override
-  Widget build(BuildContext context) {
-    return LoopAnimationBuilder(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(seconds: 20),
-      builder: (context, value, child) {
-        return CustomPaint(
-          size: Size.infinite,
-          painter: ParticlePainter(value, particleCount),
-        );
-      },
-    );
-  }
-}
-
-class ParticlePainter extends CustomPainter {
-  final double animationValue;
-  final int particleCount;
-  final List<Particle> particles;
-  
-  // **** මෙන්න දෝෂය නිවැරදි කළ තැන! ****
-  // 'random' object එක instance field එකක් විදිහට නැතුව, constructor එකේදී හදනවා
-  ParticlePainter(this.animationValue, this.particleCount)
-      : particles = List.generate(particleCount, (index) => Particle(Random())); // <-- 'random' මෙතනදී create කිරීම
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.blue.withOpacity(0.15);
-
-    for (var particle in particles) {
-      final offset = particle.move(animationValue, size);
-      canvas.drawCircle(offset, particle.size, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant ParticlePainter oldDelegate) {
-    return animationValue != oldDelegate.animationValue;
-  }
-}
-
-class Particle {
-  final Random random;
-  final double size;
-  final double speed;
-  final Offset direction;
-  final Offset initialPosition;
-
-  Particle(this.random) // <-- 'random' object එක constructor එකෙන් inject කිරීම
-      : size = random.nextDouble() * 2.0 + 1.0, 
-        speed = random.nextDouble() * 20.0 + 10.0, 
-        direction = Offset(
-          random.nextDouble() * 2.0 - 1.0, 
-          random.nextDouble() * 2.0 - 1.0, 
-        ).normalize(),
-        initialPosition = Offset(
-          random.nextDouble(),
-          random.nextDouble(),
-        );
-
-  Offset move(double animationValue, Size size) {
-    final progress = (animationValue * speed) % 1.0;
-    
-    final dx = (initialPosition.dx * size.width + direction.dx * progress * 100) % size.width;
-    final dy = (initialPosition.dy * size.height + direction.dy * progress * 100) % size.height;
-
-    return Offset(
-      dx < 0 ? dx + size.width : dx,
-      dy < 0 ? dy + size.height : dy,
-    );
-  }
-}
-
-// Offset extension එකක්
-extension on Offset {
-  Offset normalize() {
-    final d = distance;
-    if (d == 0) return Offset.zero;
-    return Offset(dx / d, dy / d);
   }
 }

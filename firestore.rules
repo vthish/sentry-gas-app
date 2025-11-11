@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- User Rules ---
+    // A user can read or write THEIR OWN document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- Hub Rules ---
+    match /hubs/{hubId} {
+      // Allow read if user is in the accessList
+      allow read: if request.auth != null && request.auth.uid in resource.data.accessList;
+      
+      // Allow create if user is the owner
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      
+      // Allow update if user is the owner
+      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      
+      // Allow delete ONLY if the user is the owner
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+    }
+  }
+}

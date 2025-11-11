@@ -1,10 +1,12 @@
-// --- lib/daily_gas_budget_page.dart (NEW FILE) ---
+// --- lib/daily_gas_budget_page.dart (UPDATED with "Liquid Crystal" UI) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart'; // For number input formatting
 import 'custom_toast.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // To save settings
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:ui'; // For ImageFilter.blur
+import 'package:simple_animations/simple_animations.dart'; // For Background
 
 class DailyGasBudgetPage extends StatefulWidget {
   final String currentHubId;
@@ -19,20 +21,17 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
   bool _autoTurnOff = false;
   bool _isLoading = true;
 
-  // Key for saving data, unique per Hub
   late String _budgetKey;
   late String _autoTurnOffKey;
 
   @override
   void initState() {
     super.initState();
-    // Create unique keys for the specific hub
     _budgetKey = 'budget_${widget.currentHubId}';
     _autoTurnOffKey = 'autoTurnOff_${widget.currentHubId}';
     _loadSettings();
   }
 
-  // Load saved settings from local storage
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -42,7 +41,6 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
     });
   }
 
-  // Save settings to local storage
   Future<void> _saveSettings() async {
     if (_budgetController.text.isEmpty) {
       showCustomToast(context, "Please enter a budget amount", isError: true);
@@ -54,10 +52,7 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
     await prefs.setBool(_autoTurnOffKey, _autoTurnOff);
 
     // In a real app, you would also send this to Firestore/Hub
-    // await FirebaseFirestore.instance.collection('hubs').doc(widget.currentHubId).update({
-    //   'dailyBudget': int.parse(_budgetController.text),
-    //   'autoTurnOffBudget': _autoTurnOff,
-    // });
+    // ...
 
     if (mounted) {
       showCustomToast(context, "Budget settings saved!");
@@ -65,10 +60,89 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
     }
   }
 
+  // --- NEW: "Dark Blue" Animated Background ---
+  Widget _buildAnimatedBackground() {
+    final tween1 = TweenSequence([
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A1931), end: const Color(0xFF182848)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF182848), end: const Color(0xFF00334E)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF00334E), end: const Color(0xFF0A1931)),
+          weight: 1),
+    ]);
+    final tween2 = TweenSequence([
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A2342), end: const Color(0xFF182848)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF182848), end: const Color(0xFF0A1931)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: ColorTween(
+              begin: const Color(0xFF0A1931), end: const Color(0xFF0A2342)),
+          weight: 1),
+    ]);
+    return LoopAnimationBuilder<Color?>(
+      tween: tween1,
+      duration: const Duration(seconds: 20),
+      builder: (context, color1, child) {
+        return LoopAnimationBuilder<Color?>(
+          tween: tween2,
+          duration: const Duration(seconds: 25),
+          builder: (context, color2, child) {
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color1 ?? const Color(0xFF0A1931),
+                    const Color(0xFF1A202C),
+                    color2 ?? const Color(0xFF0A2342),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  // --- End of Animated Background ---
+
+  // --- NEW: Glassmorphism Decoration Helper ---
+  BoxDecoration _glassmorphismCardDecoration() {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Colors.white.withOpacity(0.1),
+          Colors.white.withOpacity(0.05),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.2),
+        width: 1,
+      ),
+    );
+  }
+  // --- End of Helper ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A202C),
+      // --- UPDATED: Use transparent background ---
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -82,98 +156,112 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    // --- Budget Amount Input ---
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+      // --- UPDATED: Use Stack for background ---
+      body: Stack(
+        children: [
+          _buildAnimatedBackground(), // <-- The animation
+
+          // --- UPDATED: Add BackdropFilter for frosted glass effect ---
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Daily gas budget (grams)",
-                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _budgetController,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            decoration: InputDecoration(
-                              suffixText: "g",
-                              suffixStyle: GoogleFonts.inter(color: Colors.white54, fontSize: 32),
-                              border: InputBorder.none,
-                              filled: false,
+                          // --- UPDATED: Budget Amount Glass Card ---
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: _glassmorphismCardDecoration(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Daily gas budget (grams)",
+                                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _budgetController,
+                                  style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                  decoration: InputDecoration(
+                                    suffixText: "g",
+                                    suffixStyle: GoogleFonts.inter(color: Colors.white54, fontSize: 32),
+                                    border: InputBorder.none,
+                                    filled: false,
+                                    // Change textfield color to be more glassy
+                                    fillColor: Colors.white.withOpacity(0.1), 
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2))
+                                    ),
+                                    focusedBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(color: Colors.blue.shade400)
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                          ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, curve: Curves.easeOutCubic),
+
+                          const SizedBox(height: 24),
+
+                          // --- UPDATED: Auto-turn off Glass Card ---
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            decoration: _glassmorphismCardDecoration(),
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.power_settings_new, color: Colors.blue.shade300),
+                              title: Text(
+                                "Auto-turn off when over budget",
+                                style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                              trailing: Switch(
+                                value: _autoTurnOff,
+                                onChanged: (newValue) {
+                                  setState(() => _autoTurnOff = newValue);
+                                },
+                                activeColor: Colors.green,
+                                inactiveTrackColor: Colors.white.withOpacity(0.1),
+                                inactiveThumbColor: Colors.white54,
+                                trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+                              ),
+                            ),
+                          ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, curve: Curves.easeOutCubic),
+                          
+                          const Spacer(),
+
+                          // --- UPDATED: Glass Save Button ---
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: OutlinedButton(
+                               style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.blue.withOpacity(0.2),
+                                side: BorderSide(color: Colors.blue.shade400),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _saveSettings,
+                              child: Text(
+                                "SAVE",
+                                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                          ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, curve: Curves.easeOutCubic),
                         ],
                       ),
-                    ).animate().fade().slideY(begin: 0.2),
-
-                    const SizedBox(height: 24),
-
-                    // --- Auto-turn off Switch ---
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "Auto-turn off when over budget",
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                          Switch(
-                            value: _autoTurnOff,
-                            onChanged: (newValue) {
-                              setState(() => _autoTurnOff = newValue);
-                            },
-                            activeColor: Colors.green,
-                            inactiveTrackColor: Colors.white.withOpacity(0.1),
-                            inactiveThumbColor: Colors.white54,
-                            trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
-                          ),
-                        ],
-                      ),
-                    ).animate().fade(delay: 200.ms).slideY(begin: 0.2),
-                    
-                    const Spacer(),
-
-                    // --- Save Button ---
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _saveSettings,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(
-                          "SAVE",
-                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ).animate().fade(delay: 400.ms),
-                  ],
-                ),
-              ),
-            ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
