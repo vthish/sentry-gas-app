@@ -1,4 +1,4 @@
-// --- lib/main_dashboard_page.dart (Updated with Logout Button) ---
+// --- lib/main_dashboard_page.dart (UPDATED WITH NOTIFICATION LOGIC) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_gas_app/settings_page.dart';
@@ -6,12 +6,14 @@ import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // To read settings
 import 'page_transitions.dart';
 import 'custom_toast.dart';
-import 'auth_gate.dart'; // Logout සඳහා අවශ්‍යයි
+import 'auth_gate.dart';
+import 'notification_service.dart'; // <-- Import the new notification service
 
 class MainDashboardPage extends StatefulWidget {
-  final List<String> hubIds;
+  final List<String> hubIds; // This is a List
 
   const MainDashboardPage({super.key, required this.hubIds});
 
@@ -34,8 +36,10 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
           setState(() => _currentPageIndex = index);
         },
         itemBuilder: (context, index) {
+          // Create a separate dashboard for each Hub ID
           return SingleHubDashboard(
             hubId: widget.hubIds[index],
+            // Only show indicator dots if there is more than one hub
             showPageIndicator: widget.hubIds.length > 1,
             currentPage: _currentPageIndex,
             totalPages: widget.hubIds.length,
@@ -46,6 +50,7 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
   }
 }
 
+// --- WIDGET FOR A SINGLE HUB ---
 class SingleHubDashboard extends StatefulWidget {
   final String hubId;
   final bool showPageIndicator;
@@ -67,13 +72,65 @@ class SingleHubDashboard extends StatefulWidget {
 class _SingleHubDashboardState extends State<SingleHubDashboard> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // --- NEW STATE VARIABLES FOR NOTIFICATIONS ---
+  // To check if the "Low Gas Warning" setting is enabled
+  bool _lowGasWarningEnabled = true; // Default to true
+  // To prevent sending multiple notifications for the same event
+  bool _lowGasNotificationSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // When the dashboard loads, request notification permission
+    _requestNotificationPermission();
+    // Also load the user's saved notification preferences
+    _loadNotificationSettings();
+  }
+
+  // Request permission from the user (for Android 13+)
+  Future<void> _requestNotificationPermission() async {
+    await NotificationService.requestPermissions();
+  }
+
+  // Load settings from SharedPreferences
+  Future<void> _loadNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        // We only care about the low gas warning here
+        _lowGasWarningEnabled = prefs.getBool('lowGasWarning') ?? true;
+      });
+    }
+  }
+
+  // --- NEW: LOGIC TO CHECK GAS LEVEL AND SEND NOTIFICATION ---
+  void _checkGasLevelAndNotify(double gasLevel) {
+    // Check if gas is low, the setting is enabled, AND we haven't sent a notification yet
+    if (gasLevel < 20 && _lowGasWarningEnabled && !_lowGasNotificationSent) {
+      NotificationService.showNotification(
+        id: 1, // Unique ID for this notification type
+        title: "Low Gas Warning",
+        body: "Your gas level is at ${gasLevel.toInt()}%. Time to order a refill!",
+      );
+      // Set flag to true to prevent spamming notifications
+      if (mounted) {
+        setState(() => _lowGasNotificationSent = true);
+      }
+    }
+    // If gas level goes above 20 (e.g., refill), reset the flag
+    else if (gasLevel > 20 && _lowGasNotificationSent) {
+      if (mounted) {
+        setState(() => _lowGasNotificationSent = false);
+      }
+    }
+  }
+
   void _navigateToSettings() {
     Navigator.of(context).push(
       FadePageRoute(builder: (context) => SettingsPage(currentHubId: widget.hubId)),
     );
   }
 
-  // **** අලුත් Logout Function එක ****
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -143,15 +200,19 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     bool isDemoMode = (widget.hubId == "DEMO_HUB");
 
     if (isDemoMode) {
+      // --- Handle Demo Mode ---
+      double demoGasLevel = 72.0; // Example
+      _checkGasLevelAndNotify(demoGasLevel); // Check demo level too
       return _buildDashboardUI(
         hubName: "Demo Hub",
-        gasLevel: 72.0,
+        gasLevel: demoGasLevel,
         isValveOn: true,
         statusMessage: "Everything is OK (Demo)",
         isDemoMode: true,
       );
     }
 
+    // --- Handle Real Data from Firestore ---
     return StreamBuilder<DocumentSnapshot>(
       stream: _firestore.collection('hubs').doc(widget.hubId).snapshots(),
       builder: (context, snapshot) {
@@ -159,9 +220,15 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
           return const Center(child: CircularProgressIndicator(color: Colors.white));
         }
         Map<String, dynamic> hubData = snapshot.data!.data() as Map<String, dynamic>;
+        
+        double gasLevel = hubData['gasLevel']?.toDouble() ?? 0.0;
+        
+        // --- NEW: Check gas level every time data updates ---
+        _checkGasLevelAndNotify(gasLevel);
+
         return _buildDashboardUI(
           hubName: hubData['hubName'] ?? "My Hub",
-          gasLevel: hubData['gasLevel']?.toDouble() ?? 0.0,
+          gasLevel: gasLevel,
           isValveOn: hubData['valveOn'] ?? false,
           statusMessage: hubData['statusMessage'] ?? "Status Unknown",
           isDemoMode: false,
@@ -170,6 +237,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     );
   }
 
+  // --- Main UI Widget (No changes here) ---
   Widget _buildDashboardUI({
     required String hubName,
     required double gasLevel,
@@ -207,9 +275,8 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
           ],
         ),
         actions: [
-          // **** Settings Icon එක වෙනුවට කුඩා Logout බොත්තම ****
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20), // කුඩාවට සහ රතු පාටින්
+            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
             tooltip: 'Logout',
             onPressed: _logout,
           ),

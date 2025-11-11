@@ -1,17 +1,22 @@
-// --- lib/main.dart (Updated to use AuthGate) ---
+// --- lib/main.dart (FINAL FULL UPDATED CODE) ---
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:overlay_support/overlay_support.dart'; 
-import 'firebase_options.dart'; 
-import 'auth_gate.dart'; // <-- LoginPage වෙනුවට AuthGate import කිරීම
+import 'package:overlay_support/overlay_support.dart';
+import 'firebase_options.dart';
+import 'auth_gate.dart';
+import 'notification_service.dart'; // <-- Import the new service
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize the Notification Service
+  await NotificationService.initialize();
+
   runApp(const SentryGasApp());
 }
 
@@ -26,8 +31,8 @@ class SentryGasApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,
-          primaryColor: const Color(0xFF1A202C), 
-          scaffoldBackgroundColor: const Color(0xFF1A202C), // නිල් background
+          primaryColor: const Color(0xFF1A202C),
+          scaffoldBackgroundColor: const Color(0xFF1A202C),
           textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
@@ -44,8 +49,7 @@ class SentryGasApp extends StatelessWidget {
             ),
           ),
         ),
-        // **** මෙන්න ප්‍රධාන වෙනස! ****
-        home: const AuthGate(), // <-- LoginPage වෙනුවට AuthGate
+        home: const AuthGate(),
       ),
     );
   }
