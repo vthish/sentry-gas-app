@@ -59,6 +59,7 @@ dependencies:
   simple_animations: ^5.2.0
   shared_preferences: ^2.5.3
   fl_chart: 0.68.0
+  flutter_local_notifications: ^19.5.0
 
 
 

@@ -10,7 +10,8 @@ import 'notification_alerts_page.dart';
 import 'connect_hub_page.dart';
 import 'my_profile_page.dart';
 import 'share_with_family_page.dart';
-import 'my_usage_story_page.dart'; // <-- නව Import එක
+import 'my_usage_story_page.dart';
+import 'daily_gas_budget_page.dart'; // <-- New Import
 
 class SettingsPage extends StatelessWidget {
   final String currentHubId;
@@ -76,9 +77,10 @@ class SettingsPage extends StatelessWidget {
             _buildSettingsButton(context, icon: Icons.notifications_outlined, title: "Notification Alerts",
               onTap: () => Navigator.push(context, FadePageRoute(builder: (context) => const NotificationAlertsPage())), delay: 300),
 
-             _buildSettingsButton(context, icon: Icons.attach_money_outlined, title: "Daily Gas Budget", onTap: () => _showComingSoon(context, "Gas Budget"), delay: 400),
+            // **** UPDATED BUTTON ****
+             _buildSettingsButton(context, icon: Icons.attach_money_outlined, title: "Daily Gas Budget", 
+              onTap: () => Navigator.push(context, FadePageRoute(builder: (context) => DailyGasBudgetPage(currentHubId: currentHubId))), delay: 400),
 
-            // **** යාවත්කාලීන කළ බොත්තම ****
             _buildSettingsButton(context, icon: Icons.history_outlined, title: "My Usage Story",
               onTap: () => Navigator.push(context, FadePageRoute(builder: (context) => MyUsageStoryPage(currentHubId: currentHubId))), delay: 500),
 
@@ -91,6 +93,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  // --- Reusable button widget (no changes) ---
   Widget _buildSettingsButton(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap, bool isDestructive = false, required int delay}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
