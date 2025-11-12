@@ -6,7 +6,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -17,6 +17,7 @@ dependencies:
   # Firebase
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
+  cloud_firestore: ^5.2.0
 
   # UI
   google_fonts: ^6.2.1
@@ -31,15 +32,12 @@ dependencies:
   syncfusion_flutter_gauges: ^25.2.7
   overlay_support: ^2.1.0
 
-  # For Firestore Database
-  cloud_firestore: ^5.2.0
-
   flutter_animate: ^4.5.0
   simple_animations: ^5.2.0
   shared_preferences: ^2.5.3
   
   # REVERTED: Back to 0.68.0 to solve conflict
-  fl_chart: 0.68.0
+  fl_chart: ^0.68.0
   flutter_local_notifications: ^17.2.1
   liquid_progress_indicator_v2: ^0.5.0
 
@@ -48,6 +46,18 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+# IMPORTANT: flutter_launcher_icons configuration must be outside the 'flutter:' section
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  # adaptive_icon_background: "#1A202C"
+  # adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/app_icon.png
