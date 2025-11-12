@@ -1,4 +1,4 @@
-// --- lib/hub_settings_page.dart (UPDATED with "Liquid Crystal" UI) ---
+// --- lib/hub_settings_page.dart (UPDATED: Black Liquid Glass Dialog) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,7 +26,6 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -40,7 +39,6 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
     super.dispose();
   }
 
-  // --- (Load/Save functions remain the same) ---
   Future<void> _loadHubName() async {
     if (widget.currentHubId == "DEMO_HUB") {
       _hubNameController.text = "Demo Hub";
@@ -96,53 +94,101 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
     }
   }
 
+  // --- **** START CHANGE **** ---
+  // --- Black Liquid Glass Dialog (High Visibility) ---
   void _showDeleteConfirmationDialog() {
     final bool isDemo = (widget.currentHubId == "DEMO_HUB");
     if (isDemo) {
       showCustomToast(context, "You cannot remove the Demo Hub", isError: true);
       return;
     }
-    // --- UPDATED: Dialog with Glassmorphism ---
+    
+    bool isDialogDeleting = false; 
+
     showDialog(
       context: context,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: AlertDialog(
-          backgroundColor: Colors.white.withOpacity(0.1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.white.withOpacity(0.2)),
-          ),
-          title: Text("Remove Hub?",
-              style: GoogleFonts.inter(color: Colors.red.shade300)),
-          content: Text(
-              "Are you sure you want to remove this hub? This action cannot be undone.",
-              style: GoogleFonts.inter(color: Colors.white70)),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); 
-                _removeHub(); 
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
-              child: const Text("Yes, Remove Hub"),
+      barrierDismissible: false, 
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, StateSetter dialogSetState) {
+          return BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8), // Keep the blur
+            child: AlertDialog(
+              // --- Black Liquid Glass Style ---
+              backgroundColor: Colors.black.withOpacity(0.7), // Darker background
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                // --- More visible border ---
+                side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5), 
+              ),
+              title: Text("Remove Hub?",
+                  style: GoogleFonts.inter(
+                      color: Colors.redAccent, // Brighter red
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20)),
+              content: Text(
+                  "Are you sure you want to remove this hub? This action cannot be undone.",
+                  style: GoogleFonts.inter(color: Colors.white.withOpacity(0.85), fontSize: 16)),
+              actions: [
+                // --- Cancel Button (More Visible) ---
+                TextButton(
+                    onPressed: isDialogDeleting ? null : () => Navigator.pop(dialogContext),
+                    child: Text("Cancel", 
+                        style: GoogleFonts.inter(
+                            color: Colors.white.withOpacity(0.8), // Brighter text
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16))),
+                
+                const SizedBox(width: 12),
+
+                // --- Remove Button (No Change) ---
+                ElevatedButton(
+                  onPressed: isDialogDeleting ? null : () async {
+                    dialogSetState(() {
+                      isDialogDeleting = true;
+                    });
+                    await _removeHub(dialogContext);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700.withOpacity(0.8), 
+                    foregroundColor: Colors.white,
+                    elevation: 0, 
+                    alignment: Alignment.center, 
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.red.shade900.withOpacity(0.5)), 
+                    ),
+                  ),
+                  child: isDialogDeleting
+                    ? const SizedBox(
+                        width: 20, 
+                        height: 20, 
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                      )
+                    : Text("Yes, Remove", 
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        )),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
+  // --- **** END CHANGE **** ---
 
-  Future<void> _removeHub() async {
-    setState(() => _isDeleting = true);
+
+  Future<void> _removeHub(BuildContext dialogContext) async { 
     final String? uid = _auth.currentUser?.uid;
 
     if (uid == null) {
       showCustomToast(context, "Error: Not authenticated", isError: true);
-      setState(() => _isDeleting = false);
+      Navigator.pop(dialogContext); 
       return;
     }
 
@@ -160,14 +206,12 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
         ownerId = hubData?['ownerId'] ?? '';
       }
 
-      // Step 1: Update User Document (Remove Hub ID)
       if (userDoc.exists) {
         await userDocRef.update({
           'hubIds': FieldValue.arrayRemove([widget.currentHubId])
         });
       }
 
-      // Step 2: Delete Hub Document (If Owner)
       if (hubDoc.exists && ownerId == uid) {
         await hubDocRef.delete();
       }
@@ -184,12 +228,10 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
         showCustomToast(context, "Error removing hub: ${e.toString()}",
             isError: true);
       }
-      setState(() => _isDeleting = false);
+      Navigator.pop(dialogContext);
     }
   }
-  // --- End of Functions ---
 
-  // --- NEW: Blue-Only Animated Background ---
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -246,32 +288,11 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
     );
   }
 
-  // --- NEW: Glassmorphism Decoration Helper ---
-  BoxDecoration _glassmorphismCardDecoration() {
-    return BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          Colors.white.withOpacity(0.1),
-          Colors.white.withOpacity(0.05),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.2),
-        width: 1,
-      ),
-    );
-  }
-  // --- End of Helper ---
-
   @override
   Widget build(BuildContext context) {
     final bool isDemo = (widget.currentHubId == "DEMO_HUB");
 
     return Scaffold(
-      // --- UPDATED: Transparent background ---
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -284,7 +305,6 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
             style: GoogleFonts.inter(
                 color: Colors.white, fontWeight: FontWeight.w600)),
       ),
-      // --- UPDATED: Use Stack for background ---
       body: Stack(
         children: [
           _buildAnimatedBackground(),
@@ -309,7 +329,6 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
                           
                           const SizedBox(height: 12),
 
-                          // --- UPDATED: Glassmorphism TextField ---
                           TextField(
                             controller: _hubNameController,
                             enabled: !isDemo,
@@ -323,7 +342,6 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
                               hintText: "e.g., Home Gas, Kitchen Hub",
                               hintStyle: GoogleFonts.inter(
                                   color: Colors.white.withOpacity(0.3)),
-                              // Crystal border
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
@@ -353,23 +371,25 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
                           
                           const Spacer(),
 
-                          // --- UPDATED: Save Button (Glass Style) ---
                           SizedBox(
                             width: double.infinity,
                             height: 50,
-                            child: OutlinedButton(
+                            child: OutlinedButton.icon( 
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: Colors.blue.withOpacity(0.2), // Glass Fill
-                                side: BorderSide(color: Colors.blue.shade400), // Crystal Border
+                                backgroundColor: Colors.blue.withOpacity(0.2),
+                                side: BorderSide(color: Colors.blue.shade400),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed: (_isSaving || isDemo || _isDeleting)
+                              onPressed: (_isSaving || isDemo)
                                   ? null
                                   : _saveHubName,
-                              child: _isSaving
+                              icon: _isSaving
+                                  ? const SizedBox.shrink() 
+                                  : const Icon(Icons.save, color: Colors.white), 
+                              label: _isSaving
                                   ? const SizedBox(
                                       width: 24,
                                       height: 24,
@@ -391,40 +411,30 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
 
                           const SizedBox(height: 20),
                           
-                          // --- UPDATED: Remove Hub Button (Destructive Glass Style) ---
                           SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.1), // Destructive Glass Fill
-                                side: BorderSide(color: Colors.red.shade400), // Destructive Crystal Border
+                                backgroundColor: Colors.red.withOpacity(0.1),
+                                side: BorderSide(color: Colors.red.shade400),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
-                              onPressed: (_isSaving || isDemo || _isDeleting)
+                              onPressed: (_isSaving || isDemo)
                                   ? null
                                   : _showDeleteConfirmationDialog,
-                              icon: _isDeleting
-                                  ? const SizedBox.shrink()
-                                  : Icon(Icons.delete_outline,
+                              icon: Icon(Icons.delete_outline,
                                       color: Colors.red.shade300),
-                              label: _isDeleting
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.red, strokeWidth: 3),
-                                    )
-                                  : Text(
-                                      "Remove Hub",
-                                      style: GoogleFonts.inter(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.red.shade300),
-                                    ),
+                              label: Text(
+                                "Remove Hub",
+                                style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.red.shade300),
+                              ),
                             ),
                           )
                               .animate()

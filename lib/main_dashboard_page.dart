@@ -1,4 +1,4 @@
-// --- lib/main_dashboard_page.dart (ERROR FREE - Realistic Particles) ---
+// --- lib/main_dashboard_page.dart (Hybrid "Best of Both" Dialog) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_gas_app/settings_page.dart';
@@ -300,20 +300,23 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     }
   }
 
-  // --- UPDATED: Clear Recalibrate Dialog (Higher Visibility) ---
+  // --- **** START OF UPDATED DIALOG **** ---
+  // --- UPDATED: Hybrid "Dark Glass" Dialog with "Light Glass" Button ---
   void _showRecalibrateDialog() {
     showDialog(
       context: context,
       builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8), // More blur
+        // 1. High blur for "liquid" effect
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
-          // --- High Contrast Dark Glass background and strong border ---
-          backgroundColor:
-              Colors.black.withOpacity(0.75), // Increased opacity
+          // 2. "Dark Glass" background (as you preferred)
+          backgroundColor: Colors.black.withOpacity(0.75),
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            // 3. Strong white border for high contrast
             side: BorderSide(
-                color: Colors.white.withOpacity(0.7)), // Stronger border
+                color: Colors.white.withOpacity(0.7), width: 1.5),
           ),
           title: Text("New Cylinder?",
               style: GoogleFonts.inter(
@@ -321,21 +324,37 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
           content: Text(
               "Did you just connect a full gas cylinder? This will reset the meter to 100%.",
               style: GoogleFonts.inter(color: Colors.white70)),
+          actionsPadding:
+              const EdgeInsets.fromLTRB(24, 0, 24, 20), // Better spacing
           actions: [
-            // Styled TextButton (Secondary action)
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child:
-                    const Text("No", style: TextStyle(color: Colors.white70))),
-            // Styled ElevatedButton (Primary action)
+            // 4. "No" Button (NEW "Light Glass" Style - Secondary Action)
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.15), // Light glass
+                elevation: 0,
+                foregroundColor: Colors.white, // White text
+                side: BorderSide(color: Colors.white.withOpacity(0.25)), // Subtle border
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: const Text("No",
+                  style: TextStyle(fontWeight: FontWeight.w500)),
+            ),
+
+            // 5. "Yes" Button (Primary Action)
             ElevatedButton(
               onPressed: () {
                 _recalibrateMeter();
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade400,
-                  padding: const EdgeInsets.symmetric(horizontal: 16)),
+                backgroundColor: Colors.blue.shade400,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               child: const Text("Yes, Reset Meter",
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold)),
@@ -345,7 +364,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
   }
-  // --- End of Updated Dialog ---
+  // --- **** END OF UPDATED DIALOG **** ---
 
   // --- Animated Background (Aura) with a brighter blue ---
   Widget _buildAnimatedBackground() {
@@ -770,7 +789,7 @@ class _VaporPuffModel {
   late double wobbleFrequency;
   late double initialHorizontalOffset;
   // This value is used to make the particle "die" faster or slower
-  late double lifeSpanFactor; 
+  late double lifeSpanFactor;
 
   _VaporPuffModel(Size bounds, Random random) {
     life = 0.0;
@@ -786,7 +805,7 @@ class _VaporPuffModel {
   // update() calculates the new state of the particle
   void update(double deltaTime, Size bounds) {
     // 4 seconds average lifespan, adjusted by lifeSpanFactor
-    life += (deltaTime / 4) * lifeSpanFactor; 
+    life += (deltaTime / 4) * lifeSpanFactor;
 
     // 1. Update position (move up)
     position = position.translate(0, -20 * deltaTime); // Move up 20 pixels/sec
@@ -913,7 +932,7 @@ class _VaporPainter extends CustomPainter {
 class _CylinderClipper extends CustomClipper<Path> {
   final Path path;
   
-  // --- The constructor name is now fixed ---
+  // --- This constructor name is now fixed ---
   _CylinderClipper(this.path);
 
   @override
