@@ -5,6 +5,10 @@ import 'package:sentry_gas_app/settings_page.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// --- IMPORT ADDED ---
+// Required for getting the FCM token
+import 'package:firebase_messaging/firebase_messaging.dart';
+// --- END IMPORT ---
 import 'package:shared_preferences/shared_preferences.dart';
 import 'page_transitions.dart';
 import 'custom_toast.dart';
@@ -39,7 +43,51 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
     if (widget.hubIds.isNotEmpty) {
       _listenToHubStream(widget.hubIds[0]);
     }
+
+    // --- FUNCTION CALL ADDED ---
+    // Get and save the FCM token as soon as the dashboard loads
+    _initAndSaveFcmToken();
+    // --- END FUNCTION CALL ---
   }
+
+  // --- NEW FUNCTION ADDED ---
+  /// Gets the device's FCM token and saves it to the user's document in Firestore.
+  Future<void> _initAndSaveFcmToken() async {
+    try {
+      // 1. Get the current user's ID
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print("FCM Save Error: User is null. Cannot save token.");
+        return;
+      }
+      final uid = user.uid;
+
+      // 2. Get the FCM token from the device
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
+      if (fcmToken == null) {
+        print("FCM Save Error: Device token is null.");
+        return;
+      }
+
+      print("FCM Token Acquired: $fcmToken");
+
+      // 3. Save the token to Firestore
+      final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
+
+      // Use SetOptions(merge: true) so we don't overwrite other user data
+      await userDocRef.set({
+        'fcmToken': fcmToken,
+        'fcmTokenLastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print("--- FCM Token Successfully Saved to Firestore ---");
+    } catch (e) {
+      print("---!!! ERROR SAVING FCM TOKEN !!!---");
+      print(e.toString());
+    }
+  }
+  // --- END NEW FUNCTION ---
 
   void _listenToHubStream(String hubId) {
     if (hubId == "DEMO_HUB") {
@@ -943,4 +991,3 @@ class _CylinderClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-// --- End of CylinderClipper ---

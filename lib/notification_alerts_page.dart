@@ -1,12 +1,17 @@
-// --- lib/notification_alerts_page.dart (UPDATED with "Liquid Crystal" UI) ---
+// --- lib/notification_alerts_page.dart (UPDATED: All toggles on Firestore) ---
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'custom_toast.dart';
+import 'custom_toast.dart'; // Make sure this file exists in your project
 import 'dart:ui'; // For ImageFilter.blur
 import 'package:simple_animations/simple_animations.dart'; // For Background
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// ⭐️ NOTE: This page now assumes the user is logged in.
+// We removed SharedPreferences logic for simplicity.
 
 class NotificationAlertsPage extends StatefulWidget {
   const NotificationAlertsPage({super.key});
@@ -16,51 +21,44 @@ class NotificationAlertsPage extends StatefulWidget {
 }
 
 class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
-  bool _gasLeakAlert = true;
-  bool _lowGasWarning = true;
-  bool _hubOfflineAlert = true;
-  bool _isLoading = true;
+  // ⭐️ REMOVED ALL LOCAL STATE bools (_gasLeakAlert, _lowGasWarning, etc.)
+  // StreamBuilder will manage all state from Firestore.
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
+  // Get the current User ID
+  final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-  // Load settings from SharedPreferences
-  Future<void> _loadSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
+  // ⭐️ REMOVED initState and _loadSettings
+  // StreamBuilder handles all loading.
+
+  // ⭐️ UPDATED: _saveSetting function
+  // This is now a simple, generic function to update any field in Firestore.
+  Future<void> _saveSetting(String firestoreKey, bool value) async {
+    if (userId == null) {
       if (mounted) {
-        setState(() {
-          _gasLeakAlert = prefs.getBool('gasLeakAlert') ?? true;
-          _lowGasWarning = prefs.getBool('lowGasWarning') ?? true;
-          _hubOfflineAlert = prefs.getBool('hubOfflineAlert') ?? true;
-          _isLoading = false;
-        });
+        showCustomToast(context, "LOGIN ERROR: You must be logged in.",
+            isError: true);
       }
+      return;
+    }
+    try {
+      print("Saving '$firestoreKey: $value' to Firestore...");
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        firestoreKey: value,
+      }, SetOptions(merge: true));
+
+      print("--- ✅ FIRESTORE SAVE SUCCESSFUL ---");
+      if (mounted) showCustomToast(context, "Setting saved!", isError: false);
     } catch (e) {
+      print("--- 🛑 FIRESTORE SAVE FAILED 🛑 ---");
+      print(e.toString());
       if (mounted) {
-        // On error, still load with default values
-        setState(() => _isLoading = false);
-        showCustomToast(context, "Note: Using default settings (Couldn't load saved ones)", isError: true);
+        showCustomToast(context, "Failed to save: ${e.toString()}",
+            isError: true);
       }
     }
   }
 
-  // Save setting to SharedPreferences
-  Future<void> _saveSetting(String key, bool value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(key, value);
-    } catch (e) {
-      if (mounted) {
-        showCustomToast(context, "Failed to save setting. Please try again.", isError: true);
-      }
-    }
-  }
-
-  // --- NEW: "Dark Blue" Animated Background ---
+  // --- (Animated Background and Glassmorphism functions are UNCHANGED) ---
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -116,9 +114,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
       },
     );
   }
-  // --- End of Animated Background ---
 
-  // --- NEW: Glassmorphism Decoration Helper ---
   BoxDecoration _glassmorphismCardDecoration() {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -136,14 +132,14 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
       ),
     );
   }
-  // --- End of Helper ---
+  // --- (End of unchanged functions) ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- UPDATED: Use transparent background ---
       backgroundColor: Colors.transparent,
       appBar: AppBar(
+        // ... (AppBar is unchanged) ...
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -157,66 +153,99 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      // --- UPDATED: Use Stack for background ---
       body: Stack(
         children: [
-          _buildAnimatedBackground(), // <-- The animation
-
-          // --- UPDATED: Add BackdropFilter for frosted glass effect ---
+          _buildAnimatedBackground(),
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                : SafeArea(
-                    child: ListView(
-                      padding: const EdgeInsets.all(24.0),
-                      children: [
-                        // --- UPDATED: Using new _buildAlertItem ---
-                        _buildAlertItem(
-                          icon: Icons.error_outline,
-                          iconColor: Colors.red.shade300,
-                          title: "Gas Leak Alerts",
-                          value: _gasLeakAlert,
-                          onChanged: (newValue) {
-                            setState(() => _gasLeakAlert = newValue);
-                            _saveSetting('gasLeakAlert', newValue);
-                          },
-                          delay: 100.ms,
-                        ),
-                        const SizedBox(height: 12), // Replaced Divider
-                        _buildAlertItem(
-                          icon: Icons.opacity_outlined,
-                          iconColor: Colors.orange.shade300,
-                          title: "Low Gas Warning (20%)",
-                          value: _lowGasWarning,
-                          onChanged: (newValue) {
-                            setState(() => _lowGasWarning = newValue);
-                            _saveSetting('lowGasWarning', newValue);
-                          },
-                          delay: 200.ms,
-                        ),
-                        const SizedBox(height: 12), // Replaced Divider
-                        _buildAlertItem(
-                          icon: Icons.wifi_off_outlined,
-                          iconColor: Colors.grey.shade400,
-                          title: "Hub is Offline",
-                          value: _hubOfflineAlert,
-                          onChanged: (newValue) {
-                            setState(() => _hubOfflineAlert = newValue);
-                            _saveSetting('hubOfflineAlert', newValue);
-                          },
-                          delay: 300.ms,
-                        ),
-                      ],
+            // ⭐️ UPDATED: The whole list is now inside ONE StreamBuilder
+            child: StreamBuilder<DocumentSnapshot>(
+              // Listen to the user's document in real-time
+              stream: (userId != null)
+                  ? FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .snapshots()
+                  : null, // If user is not logged in, stream is null
+              builder: (context, snapshot) {
+                
+                // Show a loading indicator while waiting
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: Colors.white));
+                }
+
+                // Handle errors or if user is not logged in
+                if (!snapshot.hasData || (snapshot.hasError) || userId == null) {
+                  return const Center(
+                    child: Text(
+                      "Please log in to see settings.",
+                      style: TextStyle(color: Colors.white70),
                     ),
+                  );
+                }
+                
+                // If we have data, get the settings map
+                final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+
+                // Get the real-time value for each toggle
+                // We use '?? true' as a fallback if the field doesn't exist yet
+                final bool gasLeakAlertValue = data['gasLeakAlerts'] ?? true;
+                final bool lowGasWarningValue = data['lowGasWarningAlerts'] ?? true;
+                final bool hubOfflineAlertValue = data['hubOfflineAlerts'] ?? true;
+
+                // Build the list using the real-time values
+                return SafeArea(
+                  child: ListView(
+                    padding: const EdgeInsets.all(24.0),
+                    children: [
+                      _buildAlertItem(
+                        icon: Icons.error_outline,
+                        iconColor: Colors.red.shade300,
+                        title: "Gas Leak Alerts",
+                        value: gasLeakAlertValue, // Value comes from stream
+                        onChanged: (newValue) {
+                          // Save using the FIRESTORE KEY
+                          _saveSetting('gasLeakAlerts', newValue);
+                        },
+                        delay: 100.ms,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildAlertItem(
+                        icon: Icons.opacity_outlined,
+                        iconColor: Colors.orange.shade300,
+                        title: "Low Gas Warning (20%)",
+                        value: lowGasWarningValue, // Value comes from stream
+                        onChanged: (newValue) {
+                          // Save using the FIRESTORE KEY
+                          _saveSetting('lowGasWarningAlerts', newValue);
+                        },
+                        delay: 200.ms,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildAlertItem(
+                        icon: Icons.wifi_off_outlined,
+                        iconColor: Colors.grey.shade400,
+                        title: "Hub is Offline",
+                        value: hubOfflineAlertValue, // Value comes from stream
+                        onChanged: (newValue) {
+                          // Save using the FIRESTORE KEY
+                          _saveSetting('hubOfflineAlerts', newValue);
+                        },
+                        delay: 300.ms,
+                      ),
+                    ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- UPDATED: Rebuilt as a "Glassmorphism" Card ---
+  // --- _buildAlertItem is UNCHANGED ---
   Widget _buildAlertItem({
     required IconData icon,
     required Color iconColor,
@@ -252,14 +281,13 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
         ),
       ),
     )
-    // --- UPDATED: Smoother Staggered Animation ---
-    .animate()
-    .fadeIn(duration: 400.ms, delay: delay)
-    .slideY(
-      begin: 0.3,
-      duration: 500.ms,
-      delay: delay,
-      curve: Curves.easeOutCubic,
-    );
+        .animate()
+        .fadeIn(duration: 400.ms, delay: delay)
+        .slideY(
+          begin: 0.3,
+          duration: 500.ms,
+          delay: delay,
+          curve: Curves.easeOutCubic,
+        );
   }
 }

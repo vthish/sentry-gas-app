@@ -1,39 +1,36 @@
-// Import necessary v2 Firebase modules
+// --- THIS IS V2 FUNCTIONS CODE ---
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
+const admin = require("firebase-admin");
 
 // Initialize the Firebase Admin SDK
-initializeApp();
+admin.initializeApp();
 
 /**
- * Cloud Function to detect a Gas Leak and send a Push Notification (v2).
+ * Cloud Function to detect a Gas Leak and send a Push Notification (V2 Syntax).
  */
 exports.onGasLeakDetected = onDocumentUpdated("hubs/{hubId}", async (event) => {
     // Get the data from before and after the update
-    // v2 uses event.data.before and event.data.after
-    const dataBefore = event.data.before.data();
-    const dataAfter = event.data.after.data();
-    
-    // Get the hubId from the event parameters
-    const hubId = event.params.hubId;
+    if (!event.data) {
+        console.log("No data found in event. Exiting.");
+        return null;
+    }
+
+    const change = event.data;
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+    const hubId = event.params.hubId; // Get hubId from event params
 
     // --- Main Logic ---
-    // Check if the 'gasLeak' field changed from 'false' to 'true'
     if (dataBefore.gasLeak === false && dataAfter.gasLeak === true) {
         console.log(`Gas leak detected on hub: ${hubId}`);
-
-        // 1. Get the ownerId
         const ownerId = dataAfter.ownerId;
         if (!ownerId) {
-            console.error("No ownerId found on the hub document. Notification cannot be sent.");
+            console.error("No ownerId found on the hub document.");
             return null;
         }
 
-        // 2. Get the owner's user document to find their FCM token
-        // Use getFirestore()
-        const userDocRef = getFirestore().collection("users").doc(ownerId);
+        // 2. Get the user's document
+        const userDocRef = admin.firestore().collection("users").doc(ownerId);
         const userDoc = await userDocRef.get();
 
         if (!userDoc.exists) {
@@ -41,8 +38,18 @@ exports.onGasLeakDetected = onDocumentUpdated("hubs/{hubId}", async (event) => {
             return null;
         }
 
+        const userData = userDoc.data();
+
+        // ⭐️ --- Check if user wants notifications --- ⭐️
+        const gasLeakAlertsEnabled = userData.gasLeakAlerts ?? true;
+        if (gasLeakAlertsEnabled === false) {
+            console.log(`User ${ownerId} has disabled gas leak notifications. Skipping.`);
+            return null;
+        }
+        // ⭐️ --- End of check --- ⭐️
+
         // 3. Get the FCM token
-        const fcmToken = userDoc.data().fcmToken;
+        const fcmToken = userData.fcmToken;
         if (!fcmToken) {
             console.error(`FCM token not found for user: ${ownerId}.`);
             return null;
@@ -60,14 +67,14 @@ exports.onGasLeakDetected = onDocumentUpdated("hubs/{hubId}", async (event) => {
                 hubId: hubId,
                 status: "GAS_LEAK",
             },
+            token: fcmToken, // Specify the token directly for V2
         };
 
         // 5. Send the push notification
-        // Use getMessaging()
         try {
             console.log(`Sending notification to token: ${fcmToken}`);
-            // Use getMessaging().sendToDevice()
-            await getMessaging().sendToDevice(fcmToken, payload);
+            // Use admin.messaging().send() instead of sendToDevice()
+            await admin.messaging().send(payload);
             console.log("Notification sent successfully.");
         } catch (error) {
             console.error("Error sending push notification:", error);
