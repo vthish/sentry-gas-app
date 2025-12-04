@@ -1,12 +1,13 @@
-// --- lib/connect_hub_page.dart (UPDATED with "Radar Scan" UI) ---
-
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:simple_animations/simple_animations.dart'; // For Background
-import 'dart:ui'; // For ImageFilter.blur
+import 'package:simple_animations/simple_animations.dart'; 
+import 'dart:ui'; 
+import 'dart:convert';
+import 'dart:async';
+import 'dart:io'; // For Platform check
 import 'page_transitions.dart';
 import 'custom_toast.dart';
 import 'auth_gate.dart';
@@ -21,7 +22,11 @@ class ConnectHubPage extends StatefulWidget {
 
 class _ConnectHubPageState extends State<ConnectHubPage> {
   final HubService _hubService = HubService();
+  
+  // --- Constants ---
   static const String TARGET_DEVICE_NAME = "sentry";
+  static const String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+  static const String CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
   // --- State Variables ---
   bool _permissionsGranted = false;
@@ -30,10 +35,21 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
   bool _isConnecting = false;
   List<ScanResult> _scanResults = [];
 
+  // --- Controllers for Wi-Fi Popup ---
+  final TextEditingController _ssidController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    _ssidController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   // --- Check permissions on load ---
@@ -97,18 +113,32 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
 
   // --- Start Scan ---
   Future<void> _startScan() async {
-    // First, ensure permissions are granted
+    // 1. Ensure permissions are granted
     bool hasPermission = await _requestPermissions();
     if (!hasPermission) {
       showCustomToast(context, "Please grant permissions to scan.", isError: true);
       return;
     }
 
-    if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
-      setState(() => _statusText = "Please turn on Bluetooth.");
-      return;
+    // 2. Check if Bluetooth is Off and ask to Turn On
+    if (await FlutterBluePlus.adapterState.first == BluetoothAdapterState.off) {
+       if (Platform.isAndroid) {
+         try {
+           await FlutterBluePlus.turnOn();
+         } catch (e) {
+            showCustomToast(context, "Please turn on Bluetooth manually.", isError: true);
+            setState(() => _statusText = "Please turn on Bluetooth.");
+            return;
+         }
+       } else {
+         // iOS doesn't allow programmatically turning on
+         showCustomToast(context, "Please turn on Bluetooth in Settings.", isError: true);
+         setState(() => _statusText = "Please turn on Bluetooth.");
+         return;
+       }
     }
 
+    // 3. Start Scanning
     setState(() {
       _isScanning = true;
       _statusText = "Scanning for '$TARGET_DEVICE_NAME' Hubs...";
@@ -116,7 +146,7 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
     });
 
     try {
-      FlutterBluePlus.scanResults.listen((results) {
+      var subscription = FlutterBluePlus.scanResults.listen((results) {
         if (mounted) {
           setState(() {
             _scanResults = results
@@ -131,6 +161,7 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
       await Future.delayed(const Duration(seconds: 5));
       await FlutterBluePlus.stopScan();
+      subscription.cancel();
 
       if (mounted) {
         setState(() {
@@ -150,22 +181,205 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
     }
   }
 
-  // --- Connect to Device ---
-  Future<void> _connectToDevice(BluetoothDevice device) async {
+  // --- Glassmorphism Wi-Fi Dialog ---
+  void _showWifiDialog(BluetoothDevice device) {
+    _ssidController.clear();
+    _passwordController.clear();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.8), // Darken background
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent, // Transparent to show glass effect
+          insetPadding: const EdgeInsets.all(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, spreadRadius: 5),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon
+                    Icon(Icons.wifi_rounded, color: Colors.blue.shade300, size: 40),
+                    const SizedBox(height: 16),
+                    // Title
+                    Text(
+                      "Connect Hub to Wi-Fi",
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Enter your Wi-Fi details below.",
+                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // SSID Input
+                    _buildDialogTextField(controller: _ssidController, label: "Wi-Fi Name (SSID)", icon: Icons.router),
+                    const SizedBox(height: 16),
+                    
+                    // Password Input
+                    _buildDialogTextField(controller: _passwordController, label: "Password", icon: Icons.lock, isObscure: true),
+                    const SizedBox(height: 24),
+                    
+                    // Buttons Row
+                    Row(
+                      children: [
+                        // Cancel Button
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white60,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text("Cancel", style: GoogleFonts.inter(fontSize: 15)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Connect Button (Glass Style)
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.blue.shade800, Colors.blue.shade600],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context); // Close dialog
+                                _connectAndConfigHub(device, _ssidController.text, _passwordController.text);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text(
+                                "CONNECT",
+                                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper for TextField inside Dialog
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isObscure = false,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: isObscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+        prefixIcon: Icon(icon, color: Colors.blue.shade300),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.2),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blue.shade400),
+        ),
+      ),
+    );
+  }
+
+  // --- Connect to Device Logic ---
+  Future<void> _connectAndConfigHub(BluetoothDevice device, String ssid, String password) async {
+    if (ssid.isEmpty) {
+      showCustomToast(context, "Wi-Fi Name is required!", isError: true);
+      return;
+    }
+
     setState(() {
       _isConnecting = true;
-      _statusText = "Connecting to ${device.platformName}...";
+      _statusText = "Connecting to Hub...";
     });
 
     try {
+      // 1. Connect
       await device.connect(autoConnect: false).timeout(const Duration(seconds: 15));
+      
+      setState(() => _statusText = "Configuring Hub Wi-Fi...");
+
+      // 2. Discover Services
+      List<BluetoothService> services = await device.discoverServices();
+      BluetoothCharacteristic? targetChar;
+
+      for (var service in services) {
+        if (service.uuid.toString() == SERVICE_UUID) {
+          for (var char in service.characteristics) {
+            if (char.uuid.toString() == CHARACTERISTIC_UUID) {
+              targetChar = char;
+              break;
+            }
+          }
+        }
+      }
+
+      if (targetChar == null) {
+        throw Exception("Target Characteristic not found on Hub.");
+      }
+
+      // 3. Send Credentials
+      String dataToSend = "$ssid,$password";
+      await targetChar.write(utf8.encode(dataToSend));
+      
+      setState(() => _statusText = "Credentials sent! Verifying...");
+
+      // 4. Manual Disconnect from App Side
+      await Future.delayed(const Duration(seconds: 3)); 
+      await device.disconnect(); 
+
+      // 5. Success -> Firestore
       String? newHubId = await _hubService.linkBluetoothHubToUser(
           device.platformName.isEmpty ? "My Sentry Hub" : device.platformName,
           device.remoteId.toString());
 
       if (mounted && newHubId != null) {
         showCustomToast(
-            context, "Successfully connected to ${device.platformName}");
+            context, "Hub Configured! Connecting via Cloud...");
         _navigateToAuthGate();
       } else if (mounted) {
         throw Exception("Failed to create Hub in Firestore");
@@ -177,35 +391,7 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
           _isConnecting = false;
           _statusText = "Failed to connect. Please try again.";
         });
-      }
-    }
-  }
-
-  // --- Skip for Demo Hub ---
-  Future<void> _skipAndCreateDemoHub() async {
-    if (_isConnecting) return;
-    setState(() {
-      _isConnecting = true;
-      _statusText = "Creating your Demo Hub...";
-    });
-    try {
-      String? newHubId =
-          await _hubService.createDemoHubForCurrentUser("Demo Hub");
-      if (!mounted) return;
-      if (newHubId != null) {
-        showCustomToast(context, "Demo Hub Created Successfully!");
-        _navigateToAuthGate();
-      } else {
-        throw Exception(
-            "Failed to create Demo Hub. Check rules or connection.");
-      }
-    } catch (e) {
-      if (mounted) {
-        showCustomToast(context, "Error: ${e.toString()}", isError: true);
-        setState(() {
-          _isConnecting = false;
-          _statusText = "Failed to create Demo Hub. Please try again.";
-        });
+        try { await device.disconnect(); } catch (_) {}
       }
     }
   }
@@ -295,9 +481,8 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
       },
     );
   }
-  // --- End of Animated Background ---
 
-  // --- NEW: Radar Scan Animation ---
+  // --- Radar Scan Animation ---
   Widget _buildRadarAnimation() {
     return SizedBox(
       height: 200, // Fixed height for the radar
@@ -339,9 +524,8 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
       ),
     );
   }
-  // --- End of Radar Animation ---
 
-  // --- NEW: Scan Results List Widget ---
+  // --- Scan Results List Widget ---
   Widget _buildResultsList() {
     return ListView.builder(
       shrinkWrap: true,
@@ -365,15 +549,14 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
             subtitle: Text(result.device.remoteId.toString(),
                 style: const TextStyle(color: Colors.white70)),
             trailing: const Icon(Icons.chevron_right, color: Colors.white),
-            onTap: _isConnecting ? null : () => _connectToDevice(result.device),
+            onTap: _isConnecting ? null : () => _showWifiDialog(result.device),
           ),
         );
       },
     );
   }
-  // --- End of Results List ---
 
-  // --- NEW: Glass Button Widget ---
+  // --- Glass Button Widget ---
   Widget _buildGlassButton({
     required VoidCallback? onPressed,
     required Widget child,
@@ -395,7 +578,6 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
       ),
     );
   }
-  // --- End of Glass Button ---
 
   @override
   Widget build(BuildContext context) {
@@ -437,7 +619,7 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
                       // --- Dynamic Content inside the card ---
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 500),
-                        child: _buildDynamicContent(), // <-- NEW: Logic moved here
+                        child: _buildDynamicContent(),
                       ),
                     ),
                   ),
@@ -447,25 +629,11 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
           ),
         ],
       ),
-      // 3. The "Skip" button at the bottom
-      bottomNavigationBar: Container(
-        color: Colors.transparent, // Make it transparent
-        padding: const EdgeInsets.all(24.0),
-        child: TextButton(
-          onPressed: _isConnecting ? null : _skipAndCreateDemoHub,
-          child: Text(
-            "Skip & create a Demo Hub",
-            style: GoogleFonts.inter(
-              color: Colors.white54,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        ),
-      ),
+      // --- REMOVED BOTTOM NAVIGATION BAR ---
     );
   }
 
-  // --- NEW: Helper to decide what to show inside the card ---
+  // --- Helper to decide what to show inside the card ---
   Widget _buildDynamicContent() {
     // State 3: Connecting...
     if (_isConnecting) {
@@ -492,7 +660,7 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
         key: const ValueKey('scanning'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildRadarAnimation(), // <-- The Radar
+          _buildRadarAnimation(),
           Text(
             _statusText,
             style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
@@ -516,9 +684,8 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          _buildResultsList(), // <-- The List
+          _buildResultsList(),
           const SizedBox(height: 16),
-          // Button to scan again
           _buildGlassButton(
             onPressed: _startScan,
             child: Text(
@@ -559,5 +726,4 @@ class _ConnectHubPageState extends State<ConnectHubPage> {
       ],
     ).animate().fadeIn();
   }
-
 }
