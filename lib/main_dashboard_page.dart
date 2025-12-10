@@ -1,24 +1,20 @@
-// --- lib/main_dashboard_page.dart (Hybrid "Best of Both" Dialog) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_gas_app/settings_page.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// --- IMPORT ADDED ---
-// Required for getting the FCM token
 import 'package:firebase_messaging/firebase_messaging.dart';
-// --- END IMPORT ---
 import 'package:shared_preferences/shared_preferences.dart';
 import 'page_transitions.dart';
 import 'custom_toast.dart';
 import 'auth_gate.dart';
 import 'notification_service.dart';
 import 'hub_settings_page.dart';
-import 'dart:ui'; // For ImageFilter.blur
-import 'package:simple_animations/simple_animations.dart'; // For Background & Particles
+import 'dart:ui'; 
+import 'package:simple_animations/simple_animations.dart'; 
 import 'package:liquid_progress_indicator_v2/liquid_progress_indicator.dart';
-import 'dart:math'; // For sin, pi, and Random
+import 'dart:math'; 
 
 class MainDashboardPage extends StatefulWidget {
   final List<String> hubIds;
@@ -43,51 +39,28 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
     if (widget.hubIds.isNotEmpty) {
       _listenToHubStream(widget.hubIds[0]);
     }
-
-    // --- FUNCTION CALL ADDED ---
-    // Get and save the FCM token as soon as the dashboard loads
     _initAndSaveFcmToken();
-    // --- END FUNCTION CALL ---
   }
 
-  // --- NEW FUNCTION ADDED ---
-  /// Gets the device's FCM token and saves it to the user's document in Firestore.
   Future<void> _initAndSaveFcmToken() async {
     try {
-      // 1. Get the current user's ID
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        print("FCM Save Error: User is null. Cannot save token.");
-        return;
-      }
+      if (user == null) return;
       final uid = user.uid;
 
-      // 2. Get the FCM token from the device
       final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
 
-      if (fcmToken == null) {
-        print("FCM Save Error: Device token is null.");
-        return;
-      }
-
-      print("FCM Token Acquired: $fcmToken");
-
-      // 3. Save the token to Firestore
       final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
 
-      // Use SetOptions(merge: true) so we don't overwrite other user data
       await userDocRef.set({
         'fcmToken': fcmToken,
         'fcmTokenLastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      print("--- FCM Token Successfully Saved to Firestore ---");
     } catch (e) {
-      print("---!!! ERROR SAVING FCM TOKEN !!!---");
-      print(e.toString());
+      print("Error saving FCM token: $e");
     }
   }
-  // --- END NEW FUNCTION ---
 
   void _listenToHubStream(String hubId) {
     if (hubId == "DEMO_HUB") {
@@ -103,7 +76,6 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
     }
   }
 
-  // --- Navigation Functions (No Change) ---
   void _navigateToSettings() {
     String currentHubId = widget.hubIds[_currentPageIndex];
     Navigator.of(context).push(
@@ -136,7 +108,6 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
       }
     }
   }
-  // --- End of Navigation Functions ---
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +260,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
 
   void _checkGasLevelAndNotify(double gasLevel) async {
     final now = DateTime.now();
-
     final bool canSend = _lastLowGasNotificationTime == null ||
         now.difference(_lastLowGasNotificationTime!).inMinutes >= 60;
 
@@ -297,8 +267,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       NotificationService.showNotification(
         id: 1,
         title: "Low Gas Warning",
-        body:
-            "Your gas level is at ${gasLevel.toInt()}%. Time to order a refill!",
+        body: "Your gas level is at ${gasLevel.toInt()}%. Time to order a refill!",
       );
 
       if (mounted) {
@@ -348,21 +317,16 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     }
   }
 
-  // --- **** START OF UPDATED DIALOG **** ---
-  // --- UPDATED: Hybrid "Dark Glass" Dialog with "Light Glass" Button ---
   void _showRecalibrateDialog() {
     showDialog(
       context: context,
       builder: (context) => BackdropFilter(
-        // 1. High blur for "liquid" effect
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
-          // 2. "Dark Glass" background (as you preferred)
           backgroundColor: Colors.black.withOpacity(0.75),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            // 3. Strong white border for high contrast
             side: BorderSide(
                 color: Colors.white.withOpacity(0.7), width: 1.5),
           ),
@@ -373,16 +337,15 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
               "Did you just connect a full gas cylinder? This will reset the meter to 100%.",
               style: GoogleFonts.inter(color: Colors.white70)),
           actionsPadding:
-              const EdgeInsets.fromLTRB(24, 0, 24, 20), // Better spacing
+              const EdgeInsets.fromLTRB(24, 0, 24, 20),
           actions: [
-            // 4. "No" Button (NEW "Light Glass" Style - Secondary Action)
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.15), // Light glass
+                backgroundColor: Colors.white.withOpacity(0.15),
                 elevation: 0,
-                foregroundColor: Colors.white, // White text
-                side: BorderSide(color: Colors.white.withOpacity(0.25)), // Subtle border
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withOpacity(0.25)),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -390,8 +353,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
               child: const Text("No",
                   style: TextStyle(fontWeight: FontWeight.w500)),
             ),
-
-            // 5. "Yes" Button (Primary Action)
             ElevatedButton(
               onPressed: () {
                 _recalibrateMeter();
@@ -412,9 +373,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
   }
-  // --- **** END OF UPDATED DIALOG **** ---
 
-  // --- Animated Background (Aura) with a brighter blue ---
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -458,7 +417,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                 gradient: LinearGradient(
                   colors: [
                     color1 ?? const Color(0xFF0A1931),
-                    const Color(0xFF1A202C), // Dark center color
+                    const Color(0xFF1A202C),
                     color2 ?? const Color(0xFF0A2342),
                   ],
                   begin: Alignment.topLeft,
@@ -472,7 +431,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     );
   }
 
-  // --- Glassmorphism Decoration Helpers (No Change) ---
   BoxDecoration _glassmorphismCardDecoration() {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -505,20 +463,16 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       border: Border.all(color: statusColor.withOpacity(0.3)),
     );
   }
-  // --- End of Helpers ---
 
-  // --- Cylinder Path: Returns a single, combined path (No Change) ---
   Path _buildGasCylinderPath(Size size) {
     final double w = size.width;
     final double h = size.height;
     final double neckWidth = w * 0.35;
     final double neckHeight = h * 0.1;
-    final double bodyRadius = w * 0.25; // Bottom body curvature
-    final double topBodyRadius = w * 0.15; // Top body curvature
-    final double bodyTop =
-        neckHeight + (h * 0.05); // Y-position where neck meets body
+    final double bodyRadius = w * 0.25;
+    final double topBodyRadius = w * 0.15;
+    final double bodyTop = neckHeight + (h * 0.05);
 
-    // Main Body Path
     final Path bodyPath = Path();
     bodyPath.addRRect(
       RRect.fromRectAndCorners(
@@ -530,7 +484,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
 
-    // Neck Path
     final Path neckPath = Path();
     neckPath.addRRect(
       RRect.fromRectAndCorners(
@@ -542,24 +495,23 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
 
-    // Combined Path (for liquid and clipping)
     final Path combinedPath = Path.from(bodyPath);
     combinedPath.addPath(neckPath, Offset.zero);
 
-    return combinedPath; // Return the single combined path
+    return combinedPath;
   }
-  // --- End of Path Helper ---
 
   @override
   Widget build(BuildContext context) {
     bool isDemoMode = (widget.hubId == "DEMO_HUB");
 
     if (isDemoMode) {
-      double demoGasLevel = 17.0; // Updated to match the image
+      double demoGasLevel = 17.0;
       _checkGasLevelAndNotify(demoGasLevel);
       return _buildDashboardUI(
         gasLevel: demoGasLevel,
-        isValveOn: false, // Updated to match the image
+        isValveOn: false,
+        isGasLeak: false, // Demo mode safe
         isDemoMode: true,
       );
     }
@@ -580,29 +532,43 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
             snapshot.data!.data() as Map<String, dynamic>;
 
         double gasLevel = hubData['gasLevel']?.toDouble() ?? 0.0;
+        // --- NEW: Read gasLeak status from Firestore ---
+        bool isGasLeak = hubData['gasLeak'] ?? false; 
+        bool isValveOn = hubData['valveOn'] ?? false;
 
         _checkGasLevelAndNotify(gasLevel);
 
         return _buildDashboardUI(
           gasLevel: gasLevel,
-          isValveOn: hubData['valveOn'] ?? false,
+          isValveOn: isValveOn,
+          isGasLeak: isGasLeak, // Pass leak status to UI
           isDemoMode: false,
         );
       },
     );
   }
 
-  Map<String, dynamic> _getStatusData(double gasLevel) {
-    if (gasLevel <= 20) {
+  // --- UPDATED LOGIC: Prioritize Gas Leak Status ---
+  Map<String, dynamic> _getStatusData(double gasLevel, bool isGasLeak) {
+    // Check 1: Is there a Gas Leak?
+    if (isGasLeak) {
+      return {
+        'text': "CRITICAL: Gas Leak Detected!",
+        'color': Colors.red.shade600, // Strong Red
+        'icon': Icons.dangerous_rounded,
+      };
+    } 
+    // Check 2: Low Gas?
+    else if (gasLevel <= 20) {
       return {
         'text': "Status: Gas is getting low",
-        'color': Colors.red.shade400,
+        'color': Colors.orange.shade400,
         'icon': Icons.warning_amber_rounded,
       };
     } else if (gasLevel <= 50) {
       return {
         'text': "Status: Everything is OK",
-        'color': Colors.orange.shade400,
+        'color': Colors.blue.shade300, // Changed to Blue/Greenish
         'icon': Icons.check_circle_outline_rounded,
       };
     } else {
@@ -617,20 +583,23 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
   Widget _buildDashboardUI({
     required double gasLevel,
     required bool isValveOn,
+    required bool isGasLeak, // Received here
     required bool isDemoMode,
   }) {
-    final statusData = _getStatusData(gasLevel);
+    // Pass isGasLeak to status generator
+    final statusData = _getStatusData(gasLevel, isGasLeak);
     final statusText = statusData['text'] as String;
     final statusColor = statusData['color'] as Color;
     final statusIcon = statusData['icon'] as IconData;
 
-    final Color liquidColor = gasLevel < 20
+    // Determine liquid color (Red if leak or low)
+    final Color liquidColor = (isGasLeak || gasLevel < 20)
         ? Colors.red.shade400
         : (gasLevel < 50 ? Colors.orange.shade400 : Colors.green.shade400);
 
     return Stack(
       children: [
-        _buildAnimatedBackground(), // Layer 1: Animated Aura BG
+        _buildAnimatedBackground(),
 
         SafeArea(
           child: Padding(
@@ -640,7 +609,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
               children: [
                 const Spacer(flex: 1),
 
-                // --- Liquid Cylinder (Gradient BG, No Border) ---
+                // --- Liquid Cylinder ---
                 SizedBox(
                   height: 300,
                   width: 220,
@@ -651,7 +620,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
 
                       return Stack(
                         children: [
-                          // Layer 1: The Gradient Background
                           ClipPath(
                             clipper: _CylinderClipper(cylinderPath),
                             child: Container(
@@ -660,15 +628,13 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.white.withOpacity(0.25), // Top
-                                    Colors.white.withOpacity(0.1), // Bottom
+                                    Colors.white.withOpacity(0.25),
+                                    Colors.white.withOpacity(0.1),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-
-                          // Layer 2: The vapor animation
                           ClipPath(
                             clipper: _CylinderClipper(cylinderPath),
                             child: Align(
@@ -680,8 +646,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                               ),
                             ),
                           ),
-
-                          // Layer 3: The Liquid Indicator
                           LiquidCustomProgressIndicator(
                             value: gasLevel / 100,
                             valueColor: AlwaysStoppedAnimation(liquidColor),
@@ -706,11 +670,10 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                     },
                   ),
                 ).animate().scale(delay: 200.ms, duration: 600.ms),
-                // --- End of Liquid Cylinder ---
-
+                
                 const Spacer(flex: 1),
 
-                // --- Glass Status Box ---
+                // --- Glass Status Box (Colors change based on Leak) ---
                 Container(
                   padding:
                       const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
@@ -718,11 +681,14 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(statusIcon, color: statusColor),
                     const SizedBox(width: 10),
-                    Text(statusText,
-                        style: GoogleFonts.inter(
-                            color: statusColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16))
+                    Expanded( // Added Expanded to handle long leak text
+                      child: Text(statusText,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16)),
+                    )
                   ]),
                 ).animate().fade(delay: 500.ms).slideY(begin: 0.5),
                 const SizedBox(height: 40),
@@ -748,28 +714,42 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                                           fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   Text(
-                                      isValveOn
-                                          ? "Currently ON"
-                                          : "Currently OFF",
+                                      isGasLeak
+                                          ? "LOCKED (Leak Detected)" // Show Locked Text
+                                          : (isValveOn
+                                              ? "Currently ON"
+                                              : "Currently OFF"),
                                       style: GoogleFonts.inter(
-                                          color: isValveOn
-                                              ? Colors.green.shade300
-                                              : Colors.red.shade300,
+                                          color: isGasLeak
+                                              ? Colors.red.shade300 // Red text if locked
+                                              : (isValveOn
+                                                  ? Colors.green.shade300
+                                                  : Colors.red.shade300),
                                           fontSize: 14))
                                 ]),
                             Transform.scale(
                                 scale: 1.2,
                                 child: Switch(
                                     value: isValveOn,
-                                    onChanged: (newValue) => isDemoMode
-                                        ? showCustomToast(
-                                            context, "Disabled in Demo Mode",
-                                            isError: true)
-                                        : _updateValveStatus(newValue),
-                                    activeColor: Colors.green,
-                                    inactiveTrackColor:
-                                        Colors.red.shade900.withOpacity(0.5),
-                                    inactiveThumbColor: Colors.red.shade300)),
+                                    // --- UPDATED SWITCH LOGIC ---
+                                    onChanged: (newValue) {
+                                      if (isDemoMode) {
+                                        showCustomToast(context, "Disabled in Demo Mode", isError: true);
+                                      } else if (isGasLeak) {
+                                        // LOCK THE VALVE: Show Error Toast
+                                        showCustomToast(
+                                          context, 
+                                          "Valve Locked: Leak Detected! Fix leak to reset.", 
+                                          isError: true
+                                        );
+                                      } else {
+                                        // Normal Operation
+                                        _updateValveStatus(newValue);
+                                      }
+                                    },
+                                    activeColor: isGasLeak ? Colors.grey : Colors.green, // Grey out if leak
+                                    inactiveTrackColor: Colors.red.shade900.withOpacity(0.5),
+                                    inactiveThumbColor: isGasLeak ? Colors.grey : Colors.red.shade300)),
                           ]),
                     ),
                   ),
@@ -789,7 +769,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    // --- This now correctly calls the method ---
                     onPressed: isDemoMode
                         ? () => showCustomToast(context, "Disabled in Demo Mode",
                             isError: true)
@@ -812,8 +791,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
   }
 }
 
-// --- **** START NEW WIDGET (REPLACED OLD ONE) **** ---
-// --- New Vapor Animation Widget (Realistic Particles) ---
+// --- PARTICLES ANIMATION (No Changes needed here, but kept for completeness) ---
 class _VaporAnimation extends StatefulWidget {
   final Size size;
   final double startFromPercent;
@@ -827,42 +805,32 @@ class _VaporAnimation extends StatefulWidget {
   State<_VaporAnimation> createState() => _VaporAnimationState();
 }
 
-// This is a simple data class to hold particle properties
 class _VaporPuffModel {
   late Offset position;
   late double size;
   late double initialSize;
   late double maxOpacity;
-  late double life; // 0.0 (birth) to 1.0 (death)
+  late double life; 
   late double wobbleFrequency;
   late double initialHorizontalOffset;
-  // This value is used to make the particle "die" faster or slower
   late double lifeSpanFactor;
 
   _VaporPuffModel(Size bounds, Random random) {
     life = 0.0;
-    initialSize = random.nextDouble() * 20 + 30; // 30 to 50px
+    initialSize = random.nextDouble() * 20 + 30; 
     size = initialSize;
-    maxOpacity = random.nextDouble() * 0.1 + 0.1; // 10% to 20%
-    wobbleFrequency = random.nextDouble() * 2 + 2; // 2 to 4
+    maxOpacity = random.nextDouble() * 0.1 + 0.1; 
+    wobbleFrequency = random.nextDouble() * 2 + 2; 
     initialHorizontalOffset = random.nextDouble() * bounds.width;
-    position = Offset(initialHorizontalOffset, bounds.height); // Start at the bottom
-    lifeSpanFactor = random.nextDouble() * 0.4 + 0.8; // 0.8s to 1.2s
+    position = Offset(initialHorizontalOffset, bounds.height); 
+    lifeSpanFactor = random.nextDouble() * 0.4 + 0.8; 
   }
 
-  // update() calculates the new state of the particle
   void update(double deltaTime, Size bounds) {
-    // 4 seconds average lifespan, adjusted by lifeSpanFactor
     life += (deltaTime / 4) * lifeSpanFactor;
-
-    // 1. Update position (move up)
-    position = position.translate(0, -20 * deltaTime); // Move up 20 pixels/sec
-
-    // 2. Add wobble
+    position = position.translate(0, -20 * deltaTime); 
     final wobble = sin(life * wobbleFrequency * pi) * bounds.width * 0.1;
     position = Offset(initialHorizontalOffset + wobble, position.dy);
-
-    // 3. Update size (grows as it rises)
     size = initialSize + (life * 30);
   }
 
@@ -870,18 +838,17 @@ class _VaporPuffModel {
 
   double getOpacity() {
     if (life < 0.1) {
-      return (life / 0.1) * maxOpacity; // Fade in
+      return (life / 0.1) * maxOpacity; 
     }
     if (life > 0.8) {
-      return ((1.0 - life) / 0.2) * maxOpacity; // Fade out
+      return ((1.0 - life) / 0.2) * maxOpacity; 
     }
     return maxOpacity;
   }
 }
 
-// This is the state for the animation
 class _VaporAnimationState extends State<_VaporAnimation>
-    with SingleTickerProviderStateMixin { // We need this for the AnimationController
+    with SingleTickerProviderStateMixin { 
   late AnimationController _controller;
   final List<_VaporPuffModel> particles = [];
   final Random random = Random();
@@ -889,16 +856,11 @@ class _VaporAnimationState extends State<_VaporAnimation>
   @override
   void initState() {
     super.initState();
-    // 1. Create an AnimationController
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1), // Duration doesn't matter, it just ticks
+      duration: const Duration(seconds: 1), 
     );
-
-    // 2. Add a listener to update the state every frame
     _controller.addListener(_updateParticles);
-    
-    // 3. Start the animation loop
     _controller.repeat();
   }
 
@@ -909,20 +871,13 @@ class _VaporAnimationState extends State<_VaporAnimation>
   }
 
   void _updateParticles() {
-    // This function is called every frame
     setState(() {
-      // 1. Remove dead particles
       particles.removeWhere((p) => p.isDead());
-
-      // 2. Update all living particles
-      // We use a fixed delta time for stability
-      const double deltaTime = 0.016; // 60fps
+      const double deltaTime = 0.016; 
       for (var particle in particles) {
         particle.update(deltaTime, widget.size);
       }
-
-      // 3. Spawn new particles
-      if (random.nextDouble() < 0.03) { // 3% chance per frame to spawn
+      if (random.nextDouble() < 0.03) { 
         particles.add(_VaporPuffModel(widget.size, random));
       }
     });
@@ -930,8 +885,6 @@ class _VaporAnimationState extends State<_VaporAnimation>
 
   @override
   Widget build(BuildContext context) {
-    // The build method just returns the CustomPaint widget
-    // The Ticker listener handles all the state updates
     return CustomPaint(
       painter: _VaporPainter(particles),
       size: widget.size,
@@ -939,7 +892,6 @@ class _VaporAnimationState extends State<_VaporAnimation>
   }
 }
 
-// The CustomPainter to draw the particles
 class _VaporPainter extends CustomPainter {
   final List<_VaporPuffModel> particles;
   final Paint particlePaint = Paint();
@@ -952,20 +904,17 @@ class _VaporPainter extends CustomPainter {
       final opacity = particle.getOpacity();
       if (opacity <= 0) continue;
 
-      // Create the gradient for the puff
       final gradient = RadialGradient(
         colors: [
-          Colors.white.withOpacity(opacity * 0.5), // Center
-          Colors.white.withOpacity(0.0), // Edge
+          Colors.white.withOpacity(opacity * 0.5), 
+          Colors.white.withOpacity(0.0), 
         ],
       );
 
-      // Apply the gradient to the paint
       particlePaint.shader = gradient.createShader(
         Rect.fromCircle(center: particle.position, radius: particle.size / 2)
       );
 
-      // Draw the particle
       canvas.drawCircle(particle.position, particle.size / 2, particlePaint);
     }
   }
@@ -973,14 +922,10 @@ class _VaporPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
-// --- **** END NEW WIDGET **** ---
 
-
-// --- CylinderClipper (Needed for the gradient background) ---
 class _CylinderClipper extends CustomClipper<Path> {
   final Path path;
   
-  // --- This constructor name is now fixed ---
   _CylinderClipper(this.path);
 
   @override

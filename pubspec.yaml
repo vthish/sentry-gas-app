@@ -35,6 +35,7 @@ dependencies:
   
   # Native Splash
   flutter_native_splash: ^2.4.1
+  firebase_app_check: ^0.3.2+10
 
 dev_dependencies:
   flutter_test:

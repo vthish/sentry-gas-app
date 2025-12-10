@@ -1,4 +1,3 @@
-// --- THIS IS V2 FUNCTIONS CODE ---
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 
@@ -40,13 +39,13 @@ exports.onGasLeakDetected = onDocumentUpdated("hubs/{hubId}", async (event) => {
 
         const userData = userDoc.data();
 
-        // ⭐️ --- Check if user wants notifications --- ⭐️
+        // --- Check if user wants notifications ---
         const gasLeakAlertsEnabled = userData.gasLeakAlerts ?? true;
         if (gasLeakAlertsEnabled === false) {
             console.log(`User ${ownerId} has disabled gas leak notifications. Skipping.`);
             return null;
         }
-        // ⭐️ --- End of check --- ⭐️
+        // --- End of check ---
 
         // 3. Get the FCM token
         const fcmToken = userData.fcmToken;
@@ -60,7 +59,22 @@ exports.onGasLeakDetected = onDocumentUpdated("hubs/{hubId}", async (event) => {
             notification: {
                 title: "GAS LEAK DETECTED!",
                 body: "A potential gas leak has been detected from your Sentry Gas Hub. Please check immediately!",
-                sound: "default",
+                // 'sound' removed from here to fix the error
+            },
+            // Add Android specific config
+            android: {
+                notification: {
+                    sound: "default",
+                    priority: "high"
+                }
+            },
+            // Add iOS specific config
+            apns: {
+                payload: {
+                    aps: {
+                        sound: "default"
+                    }
+                }
             },
             data: {
                 click_action: "FLUTTER_NOTIFICATION_CLICK",
