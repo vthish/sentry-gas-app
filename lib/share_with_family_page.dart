@@ -1,4 +1,4 @@
-// --- lib/share_with_family_page.dart (UPDATED with "Liquid Crystal" UI) ---
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -16,12 +16,12 @@ class ShareWithFamilyPage extends StatefulWidget {
 
 class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
   final TextEditingController _phoneController = TextEditingController();
-  // Dummy data for UI
+
   final List<Map<String, String>> _sharedUsers = [
     {'name': 'Wife', 'phone': '+94 77 123 4567'},
   ];
 
-  // Updated _inviteUser method
+
   void _inviteUser() async {
     String phone = _phoneController.text.trim();
     if (phone.isEmpty) {
@@ -29,7 +29,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
       return;
     }
 
-    // Phone number formatting logic
+
     if (!phone.startsWith('+')) {
       if (phone.startsWith('0')) {
         phone = '+94${phone.substring(1)}'; // 077... -> +9477...
@@ -38,7 +38,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
       }
     }
 
-    // Unfocus keyboard
+
     FocusScope.of(context).unfocus();
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -49,11 +49,11 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
       _phoneController.clear();
     });
 
-    // --- UPDATED: Use showCustomToast instead of SnackBar ---
+
     showCustomToast(context, "Invitation sent to $phone");
   }
 
-  // --- NEW: "Dark Blue" Animated Background ---
+
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -109,9 +109,9 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
       },
     );
   }
-  // --- End of Animated Background ---
 
-  // --- NEW: Glassmorphism Decoration Helper ---
+
+
   BoxDecoration _glassmorphismCardDecoration() {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -129,12 +129,12 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
       ),
     );
   }
-  // --- End of Helper ---
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- UPDATED: Use transparent background ---
+
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -147,12 +147,12 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70),
             onPressed: () => Navigator.of(context).pop()),
       ),
-      // --- UPDATED: Use Stack for background ---
+
       body: Stack(
         children: [
           _buildAnimatedBackground(), // <-- The animation
 
-          // --- UPDATED: Add BackdropFilter for frosted glass effect ---
+
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: SafeArea(
@@ -170,7 +170,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
                     
                     const SizedBox(height: 8),
 
-                    // --- UPDATED: Glass Input Row ---
+
                     Row(
                       children: [
                         Expanded(
@@ -187,7 +187,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
                               hintStyle: GoogleFonts.inter(color: Colors.white24),
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.1), // Glass fill
-                              // Crystal border
+
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
@@ -204,7 +204,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // --- UPDATED: Glass Button ---
+
                         OutlinedButton(
                           onPressed: _inviteUser,
                           style: OutlinedButton.styleFrom(
@@ -237,7 +237,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
 
                     const SizedBox(height: 16),
                     
-                    // --- UPDATED: Glass List ---
+
                     Expanded(
                       child: ListView.separated(
                         itemCount: _sharedUsers.length,
@@ -269,7 +269,7 @@ class _ShareWithFamilyPageState extends State<ShareWithFamilyPage> {
                               ),
                             ),
                           )
-                          // Staggered animation for each list item
+
                           .animate().fadeIn(delay: (400 + index * 100).ms).slideX(begin: 0.2); 
                         },
                       ),

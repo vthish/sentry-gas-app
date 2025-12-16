@@ -1,4 +1,4 @@
-// --- lib/notification_alerts_page.dart (UPDATED: All toggles on Firestore) ---
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,8 +10,8 @@ import 'package:simple_animations/simple_animations.dart'; // For Background
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ⭐️ NOTE: This page now assumes the user is logged in.
-// We removed SharedPreferences logic for simplicity.
+
+
 
 class NotificationAlertsPage extends StatefulWidget {
   const NotificationAlertsPage({super.key});
@@ -21,17 +21,17 @@ class NotificationAlertsPage extends StatefulWidget {
 }
 
 class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
-  // ⭐️ REMOVED ALL LOCAL STATE bools (_gasLeakAlert, _lowGasWarning, etc.)
-  // StreamBuilder will manage all state from Firestore.
 
-  // Get the current User ID
+
+
+
   final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-  // ⭐️ REMOVED initState and _loadSettings
-  // StreamBuilder handles all loading.
 
-  // ⭐️ UPDATED: _saveSetting function
-  // This is now a simple, generic function to update any field in Firestore.
+
+
+
+
   Future<void> _saveSetting(String firestoreKey, bool value) async {
     if (userId == null) {
       if (mounted) {
@@ -58,7 +58,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
     }
   }
 
-  // --- (Animated Background and Glassmorphism functions are UNCHANGED) ---
+
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -132,14 +132,14 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
       ),
     );
   }
-  // --- (End of unchanged functions) ---
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        // ... (AppBar is unchanged) ...
+
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -158,9 +158,9 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
           _buildAnimatedBackground(),
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            // ⭐️ UPDATED: The whole list is now inside ONE StreamBuilder
+
             child: StreamBuilder<DocumentSnapshot>(
-              // Listen to the user's document in real-time
+
               stream: (userId != null)
                   ? FirebaseFirestore.instance
                       .collection('users')
@@ -169,13 +169,13 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
                   : null, // If user is not logged in, stream is null
               builder: (context, snapshot) {
                 
-                // Show a loading indicator while waiting
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                       child: CircularProgressIndicator(color: Colors.white));
                 }
 
-                // Handle errors or if user is not logged in
+
                 if (!snapshot.hasData || (snapshot.hasError) || userId == null) {
                   return const Center(
                     child: Text(
@@ -185,16 +185,16 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
                   );
                 }
                 
-                // If we have data, get the settings map
+
                 final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-                // Get the real-time value for each toggle
-                // We use '?? true' as a fallback if the field doesn't exist yet
+
+
                 final bool gasLeakAlertValue = data['gasLeakAlerts'] ?? true;
                 final bool lowGasWarningValue = data['lowGasWarningAlerts'] ?? true;
                 final bool hubOfflineAlertValue = data['hubOfflineAlerts'] ?? true;
 
-                // Build the list using the real-time values
+
                 return SafeArea(
                   child: ListView(
                     padding: const EdgeInsets.all(24.0),
@@ -205,7 +205,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
                         title: "Gas Leak Alerts",
                         value: gasLeakAlertValue, // Value comes from stream
                         onChanged: (newValue) {
-                          // Save using the FIRESTORE KEY
+
                           _saveSetting('gasLeakAlerts', newValue);
                         },
                         delay: 100.ms,
@@ -217,7 +217,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
                         title: "Low Gas Warning (20%)",
                         value: lowGasWarningValue, // Value comes from stream
                         onChanged: (newValue) {
-                          // Save using the FIRESTORE KEY
+
                           _saveSetting('lowGasWarningAlerts', newValue);
                         },
                         delay: 200.ms,
@@ -229,7 +229,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
                         title: "Hub is Offline",
                         value: hubOfflineAlertValue, // Value comes from stream
                         onChanged: (newValue) {
-                          // Save using the FIRESTORE KEY
+
                           _saveSetting('hubOfflineAlerts', newValue);
                         },
                         delay: 300.ms,
@@ -245,7 +245,7 @@ class _NotificationAlertsPageState extends State<NotificationAlertsPage> {
     );
   }
 
-  // --- _buildAlertItem is UNCHANGED ---
+
   Widget _buildAlertItem({
     required IconData icon,
     required Color iconColor,

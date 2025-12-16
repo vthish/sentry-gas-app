@@ -1,19 +1,19 @@
-// --- lib/custom_toast.dart (UPDATED for High Contrast) ---
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'dart:ui'; // For BackdropFilter (Glass effect)
 
-// The main function to display our custom pop-up
+
 void showCustomToast(BuildContext context, String message, {bool isError = false}) {
   showOverlayNotification(
     (context) {
-      // This is where we build our "Liquid Glass" widget
+
       return Material(
         color: Colors.transparent,
         child: Padding(
-          // Vertical padding pushed the toast down to clear the title
+
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 40.0), 
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16.0),
@@ -22,13 +22,13 @@ void showCustomToast(BuildContext context, String message, {bool isError = false
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 decoration: BoxDecoration(
-                  // --- UPDATED: Use a dark, semi-transparent background for high contrast ---
+
                   color: Colors.black.withOpacity(0.4), 
                   borderRadius: BorderRadius.circular(16.0),
                   border: Border.all(
                     color: Colors.white.withOpacity(0.3),
                   ),
-                  // --- NEW: Add shadow/elevation to make it pop out ---
+
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.5),
@@ -39,15 +39,15 @@ void showCustomToast(BuildContext context, String message, {bool isError = false
                 ),
                 child: Row(
                   children: [
-                    // Icon (Error or Success)
+
                     Icon(
                       isError ? Icons.error_outline : Icons.check_circle_outline,
-                      // --- UPDATED: Use stronger color shades for better alert/success ---
+
                       color: isError ? Colors.red.shade500 : Colors.green.shade500, 
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    // Message
+
                     Expanded(
                       child: Text(
                         message,

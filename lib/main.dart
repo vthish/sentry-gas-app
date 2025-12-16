@@ -1,4 +1,4 @@
-// --- lib/main.dart (FIXED FOR OTP & NOTIFICATIONS) ---
+
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -21,7 +21,7 @@ void main() async {
     appleProvider: AppleProvider.debug,
   );
 
-  // Initialize the Notification Service
+
   await NotificationService.initialize();
 
   runApp(const SentryGasApp());

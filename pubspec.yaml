@@ -18,8 +18,8 @@ dependencies:
   google_fonts: ^6.2.1
   pinput: ^5.0.0
   
-  # --- CHANGED: Removed Bluetooth, Added QR & HTTP ---
-  # flutter_blue_plus: ^1.34.5 (Removed)
+
+
   mobile_scanner: ^5.2.3  # Added for QR Code Scanning
   http: ^1.2.2            # Added for sending data to ESP8266
   
@@ -33,7 +33,7 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   liquid_progress_indicator_v2: ^0.5.0
   
-  # Native Splash
+
   flutter_native_splash: ^2.4.1
   firebase_app_check: ^0.3.2+10
 
@@ -43,7 +43,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.1
 
-# --- App Icon Settings (Menu Icon) ---
+
 flutter_launcher_icons:
   android: true
   ios: true
@@ -52,7 +52,7 @@ flutter_launcher_icons:
   adaptive_icon_background: "#000000" # Background set to Black
   adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
 
-# --- Splash Screen Settings (Start-up Screen) ---
+
 flutter_native_splash:
   color: "#000000" # Splash screen background color
   image: "assets/icons/app_icon.png" # Splash screen image

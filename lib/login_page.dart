@@ -1,4 +1,4 @@
-// --- lib/login_page.dart (UPDATED: Re-added "Enter Phone Number" label) ---
+
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,8 +10,8 @@ import 'dart:ui'; // For ImageFilter.blur
 import 'page_transitions.dart';
 import 'auth_gate.dart'; 
 import 'custom_toast.dart';
-// We are not using the custom icon file
-// import 'gas_cylinder_icon.dart'; 
+
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isOtpSent = false;
   bool _isLoading = false;
 
-  // --- Functions (No Changes) ---
+
   
   Future<void> _sendOtp() async {
     String phoneNumber = _phoneController.text.trim();
@@ -112,10 +112,10 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
     }
   }
-  // --- End of Functions ---
 
 
-  // --- Blue-Only Animated Background (No Change) ---
+
+
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -191,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
       },
     );
   }
-  // --- End of Animated Background ---
+
 
 
   @override
@@ -328,13 +328,13 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- UPDATED: Phone Form (Label re-added) ---
+
   Widget _buildPhoneForm() {
     return Column(
       key: const ValueKey('phoneForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- THIS IS THE RE-ADDED LABEL ---
+
         Text(
           "Enter Phone Number",
           style: GoogleFonts.inter(fontSize: 16, color: Colors.white),
@@ -354,7 +354,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: GoogleFonts.inter(fontSize: 18, color: Colors.white70),
               ),
             ),
-            // --- UPDATED: Hint text changed back ---
+
             hintText: "71 123 4567",
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
             enabledBorder: OutlineInputBorder(
@@ -369,7 +369,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 24),
         
-        // --- "Glass" Button ---
+
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -399,7 +399,7 @@ class _LoginPageState extends State<LoginPage> {
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  // --- OTP Form (No Change) ---
+
   Widget _buildOtpForm(PinTheme glassPinTheme) {
     return Column(
       key: const ValueKey('otpForm'),

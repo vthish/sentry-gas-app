@@ -1,12 +1,12 @@
-// --- lib/daily_gas_budget_page.dart (UPDATED with "Liquid Crystal" UI) ---
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart'; // For number input formatting
+import 'package:flutter/services.dart';
 import 'custom_toast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:ui'; // For ImageFilter.blur
-import 'package:simple_animations/simple_animations.dart'; // For Background
+import 'dart:ui';
+import 'package:simple_animations/simple_animations.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DailyGasBudgetPage extends StatefulWidget {
   final String currentHubId;
@@ -18,27 +18,43 @@ class DailyGasBudgetPage extends StatefulWidget {
 
 class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
   final TextEditingController _budgetController = TextEditingController();
-  bool _autoTurnOff = false;
   bool _isLoading = true;
-
   late String _budgetKey;
-  late String _autoTurnOffKey;
 
   @override
   void initState() {
     super.initState();
     _budgetKey = 'budget_${widget.currentHubId}';
-    _autoTurnOffKey = 'autoTurnOff_${widget.currentHubId}';
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _budgetController.text = prefs.getString(_budgetKey) ?? '150'; // Default 150g
-      _autoTurnOff = prefs.getBool(_autoTurnOffKey) ?? false;
-      _isLoading = false;
-    });
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('hubs')
+          .doc(widget.currentHubId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          _budgetController.text = (data['dailyGasBudget'] ?? 150.0).toString();
+        });
+      } else {
+        setState(() {
+          _budgetController.text = prefs.getString(_budgetKey) ?? '150';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _budgetController.text = prefs.getString(_budgetKey) ?? '150';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -46,21 +62,29 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
       showCustomToast(context, "Please enter a budget amount", isError: true);
       return;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_budgetKey, _budgetController.text);
-    await prefs.setBool(_autoTurnOffKey, _autoTurnOff);
 
-    // In a real app, you would also send this to Firestore/Hub
-    // ...
+    try {
+      await FirebaseFirestore.instance
+          .collection('hubs')
+          .doc(widget.currentHubId)
+          .update({
+        'dailyGasBudget': double.tryParse(_budgetController.text) ?? 0.0,
+        // UI එකෙන් අයින් කළාට, Save කරනකොට ඉබේම Auto Off එක ON වෙනවා.
+        'autoShutoff': true, 
+      });
 
-    if (mounted) {
-      showCustomToast(context, "Budget settings saved!");
-      Navigator.pop(context); // Go back to Settings page
+      if (mounted) {
+        showCustomToast(context, "Settings updated to Cloud!");
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      showCustomToast(context, "Error updating cloud: $e", isError: true);
     }
   }
 
-  // --- NEW: "Dark Blue" Animated Background ---
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -116,9 +140,7 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
       },
     );
   }
-  // --- End of Animated Background ---
 
-  // --- NEW: Glassmorphism Decoration Helper ---
   BoxDecoration _glassmorphismCardDecoration() {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -136,12 +158,10 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
       ),
     );
   }
-  // --- End of Helper ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- UPDATED: Use transparent background ---
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -156,12 +176,9 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      // --- UPDATED: Use Stack for background ---
       body: Stack(
         children: [
-          _buildAnimatedBackground(), // <-- The animation
-
-          // --- UPDATED: Add BackdropFilter for frosted glass effect ---
+          _buildAnimatedBackground(),
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: _isLoading
@@ -171,7 +188,6 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
-                          // --- UPDATED: Budget Amount Glass Card ---
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: _glassmorphismCardDecoration(),
@@ -193,8 +209,7 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
                                     suffixStyle: GoogleFonts.inter(color: Colors.white54, fontSize: 32),
                                     border: InputBorder.none,
                                     filled: false,
-                                    // Change textfield color to be more glassy
-                                    fillColor: Colors.white.withOpacity(0.1), 
+                                    fillColor: Colors.white.withOpacity(0.1),
                                     enabledBorder: UnderlineInputBorder(
                                       borderSide: BorderSide(color: Colors.white.withOpacity(0.2))
                                     ),
@@ -206,41 +221,16 @@ class _DailyGasBudgetPageState extends State<DailyGasBudgetPage> {
                               ],
                             ),
                           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, curve: Curves.easeOutCubic),
-
-                          const SizedBox(height: 24),
-
-                          // --- UPDATED: Auto-turn off Glass Card ---
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            decoration: _glassmorphismCardDecoration(),
-                            child: ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(Icons.power_settings_new, color: Colors.blue.shade300),
-                              title: Text(
-                                "Auto-turn off when over budget",
-                                style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                              ),
-                              trailing: Switch(
-                                value: _autoTurnOff,
-                                onChanged: (newValue) {
-                                  setState(() => _autoTurnOff = newValue);
-                                },
-                                activeColor: Colors.green,
-                                inactiveTrackColor: Colors.white.withOpacity(0.1),
-                                inactiveThumbColor: Colors.white54,
-                                trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
-                              ),
-                            ),
-                          ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, curve: Curves.easeOutCubic),
                           
+                          // මෙතන තිබුණු Auto Turn off Switch කොටස සම්පූර්ණයෙන්ම ඉවත් කළා
+
                           const Spacer(),
 
-                          // --- UPDATED: Glass Save Button ---
                           SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: OutlinedButton(
-                               style: OutlinedButton.styleFrom(
+                              style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 backgroundColor: Colors.blue.withOpacity(0.2),
                                 side: BorderSide(color: Colors.blue.shade400),

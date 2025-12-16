@@ -1,4 +1,4 @@
-// --- lib/hub_settings_page.dart (UPDATED: Black Liquid Glass Dialog) ---
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -94,8 +94,8 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
     }
   }
 
-  // --- **** START CHANGE **** ---
-  // --- Black Liquid Glass Dialog (High Visibility) ---
+
+
   void _showDeleteConfirmationDialog() {
     final bool isDemo = (widget.currentHubId == "DEMO_HUB");
     if (isDemo) {
@@ -113,12 +113,12 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
           return BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8), // Keep the blur
             child: AlertDialog(
-              // --- Black Liquid Glass Style ---
+
               backgroundColor: Colors.black.withOpacity(0.7), // Darker background
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                // --- More visible border ---
+
                 side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5), 
               ),
               title: Text("Remove Hub?",
@@ -130,7 +130,7 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
                   "Are you sure you want to remove this hub? This action cannot be undone.",
                   style: GoogleFonts.inter(color: Colors.white.withOpacity(0.85), fontSize: 16)),
               actions: [
-                // --- Cancel Button (More Visible) ---
+
                 TextButton(
                     onPressed: isDialogDeleting ? null : () => Navigator.pop(dialogContext),
                     child: Text("Cancel", 
@@ -141,7 +141,7 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
                 
                 const SizedBox(width: 12),
 
-                // --- Remove Button (No Change) ---
+
                 ElevatedButton(
                   onPressed: isDialogDeleting ? null : () async {
                     dialogSetState(() {
@@ -180,7 +180,7 @@ class _HubSettingsPageState extends State<HubSettingsPage> {
       ),
     );
   }
-  // --- **** END CHANGE **** ---
+
 
 
   Future<void> _removeHub(BuildContext dialogContext) async { 

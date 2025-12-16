@@ -1,4 +1,4 @@
-// --- lib/gas_cylinder_icon.dart ---
+
 
 import 'package:flutter/material.dart';
 
@@ -40,7 +40,7 @@ class _GasCylinderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = width * 0.03;
 
-    // Cylinder Body
+
     final RRect body = RRect.fromRectAndCorners(
       Rect.fromLTWH(width * 0.2, height * 0.2, width * 0.6, height * 0.7),
       topLeft: Radius.circular(width * 0.1),
@@ -51,12 +51,12 @@ class _GasCylinderPainter extends CustomPainter {
     canvas.drawRRect(body, paint);
     canvas.drawRRect(body, borderPaint);
 
-    // Cylinder Top Neck
+
     final Rect neck = Rect.fromLTWH(width * 0.4, height * 0.1, width * 0.2, height * 0.1);
     canvas.drawRect(neck, paint);
     canvas.drawRect(neck, borderPaint);
 
-    // Valve/Top Cap
+
     final RRect cap = RRect.fromRectAndCorners(
       Rect.fromLTWH(width * 0.35, height * 0.05, width * 0.3, height * 0.08),
       topLeft: Radius.circular(width * 0.05),

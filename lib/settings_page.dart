@@ -1,4 +1,4 @@
-// --- lib/settings_page.dart (UPDATED with "Faster & Smoother Slide-X" Animation) ---
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,7 +21,7 @@ class SettingsPage extends StatelessWidget {
 
   const SettingsPage({super.key, required this.currentHubId});
 
-  // Logout Function (No Change)
+
   Future<void> _logout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -39,12 +39,12 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  // Placeholder (No Change)
+
   void _showComingSoon(BuildContext context, String featureName) {
     showCustomToast(context, "$featureName is coming soon!");
   }
 
-  // --- "Dark Blue" Animated Background (No Change) ---
+
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -100,9 +100,9 @@ class SettingsPage extends StatelessWidget {
       },
     );
   }
-  // --- End of Animated Background ---
 
-  // --- Glassmorphism Decoration Helper (No Change) ---
+
+
   BoxDecoration _glassmorphismButtonDecoration({bool isDestructive = false, bool isPrimary = false}) {
     
     if (isPrimary) {
@@ -157,7 +157,7 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
-  // --- End of Helper ---
+
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +183,7 @@ class SettingsPage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(24.0),
                 children: [
-                  // --- Connect New Hub Button (UPDATED Animation) ---
+
                   Container(
                     margin: const EdgeInsets.only(bottom: 30),
                     decoration: _glassmorphismButtonDecoration(isPrimary: true),
@@ -200,13 +200,13 @@ class SettingsPage extends StatelessWidget {
                           context, FadePageRoute(builder: (context) => const ConnectHubPage())),
                     ),
                   )
-                  // --- UPDATED ANIMATION (Faster, Smoother SlideX) ---
+
                   .animate()
                   .fadeIn(duration: 300.ms, delay: 0.ms, curve: Curves.easeOut)
                   .slideX(begin: 0.3, duration: 400.ms, curve: Curves.easeOut),
 
 
-                  // --- Settings Links (Staggered delays updated) ---
+
                   _buildSettingsButton(context,
                       icon: Icons.person_outline,
                       title: "My Profile",
@@ -286,7 +286,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  // --- UPDATED: Reusable glass button widget (with new animation) ---
+
   Widget _buildSettingsButton(BuildContext context,
       {required IconData icon,
       required String title,
@@ -328,7 +328,7 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     )
-    // --- *** THIS IS THE UPDATED "Faster & Smoother" ANIMATION *** ---
+
     .animate()
     .fadeIn(duration: 300.ms, delay: delay.ms, curve: Curves.easeOut) // Faster fade
     .slideX(

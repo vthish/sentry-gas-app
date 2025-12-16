@@ -1,4 +1,4 @@
-// --- lib/my_profile_page.dart (UPDATED with "Liquid Crystal" UI) ---
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,7 +40,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
         }
       }
     } catch (e) {
-      // Error silently
+
     }
   }
 
@@ -66,7 +66,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
     }
   }
 
-  // --- NEW: "Dark Blue" Animated Background ---
+
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
       TweenSequenceItem(
@@ -122,12 +122,12 @@ class _MyProfilePageState extends State<MyProfilePage> {
       },
     );
   }
-  // --- End of Animated Background ---
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- UPDATED: Transparent background ---
+
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -141,7 +141,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      // --- UPDATED: Use Stack for background ---
+
       body: Stack(
         children: [
           _buildAnimatedBackground(), // <-- The animation
@@ -160,7 +160,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
                   const SizedBox(height: 8),
 
-                  // --- UPDATED: Glassmorphism TextField ---
+
                   TextField(
                     controller: _nameController,
                     style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
@@ -169,7 +169,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                       hintStyle: GoogleFonts.inter(color: Colors.white24),
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1), // Glass fill
-                      // Crystal border
+
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
@@ -197,7 +197,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
                   const SizedBox(height: 8),
 
-                  // --- UPDATED: Glassmorphism Container ---
+
                   Container(
                     width: double.infinity,
                     padding:
@@ -228,7 +228,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
                   const Spacer(),
 
-                  // --- UPDATED: Glass Button ---
+
                   SizedBox(
                     width: double.infinity,
                     height: 50,

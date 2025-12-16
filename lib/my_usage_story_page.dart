@@ -1,9 +1,9 @@
-// --- lib/my_usage_story_page.dart (FIXED LoopAnimationBuilder and TabBar) ---
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-// NEW IMPORT for background animation
+
 import 'package:simple_animations/simple_animations.dart';
 
 class MyUsageStoryPage extends StatefulWidget {
@@ -50,9 +50,9 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- UPDATED: Animated Background Widget (uses LoopAnimationBuilder) ---
+
   Widget _buildAnimatedBackground() {
-    // Define the color tweens
+
     final tween1 = TweenSequence([
       TweenSequenceItem(
         tween: ColorTween(
@@ -101,7 +101,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
       ),
     ]);
 
-    // Use LoopAnimationBuilder
+
     return LoopAnimationBuilder<Color?>(
       tween: tween1, // First color tween
       duration: const Duration(seconds: 20),
@@ -128,7 +128,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
       },
     );
   }
-  // --- End of Animated Background ---
+
 
   @override
   Widget build(BuildContext context) {
@@ -147,10 +147,10 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        // --- UPDATED: TabBar ---
+
         bottom: TabBar(
           controller: _tabController,
-          // --- REMOVED: backgroundColor: Colors.transparent, ---
+
           indicatorColor: Colors.blue,
           labelColor: Colors.blue,
           unselectedLabelColor: Colors.white54,
@@ -178,7 +178,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- Tab 1: This Week ---
+
   Widget _buildThisWeekTab() {
     final List<double> weeklyUsage = [150, 120, 180, 90, 200, 160, 140];
     final double totalUsageGrams = weeklyUsage.reduce((a, b) => a + b);
@@ -200,7 +200,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          // 1. Pie Chart
+
           SizedBox(
             height: 200,
             child: PieChart(
@@ -250,7 +250,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
 
           const SizedBox(height: 30),
 
-          // 2. Summary Text
+
           Container(
             padding: const EdgeInsets.all(20),
             decoration: _glassmorphismDecoration(),
@@ -283,7 +283,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
 
           const SizedBox(height: 30),
 
-          // 3. Daily List
+
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -311,7 +311,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- Tab 2: Last 6 Months ---
+
   Widget _buildMonthlyListTab() {
     final List<Map<String, String>> monthlyUsageData = [
       {'month': 'October', 'usage': '11.2 kg', 'value': '11.2'},
@@ -384,7 +384,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- Tab 3: Cylinder History ---
+
   Widget _buildHistoryListTab() {
     final List<Map<String, String>> cylinderHistory = [
       {'date': 'Connected: Oct 15, 2025', 'duration': 'Used for 32 days', 'value': '32'},
