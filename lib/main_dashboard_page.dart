@@ -1,24 +1,21 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_gas_app/settings_page.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-
 import 'package:firebase_messaging/firebase_messaging.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart'; 
 import 'page_transitions.dart';
 import 'custom_toast.dart';
 import 'auth_gate.dart';
 import 'notification_service.dart';
 import 'hub_settings_page.dart';
-import 'dart:ui'; // For ImageFilter.blur
-import 'package:simple_animations/simple_animations.dart'; // For Background
+import 'dart:ui'; 
+import 'package:simple_animations/simple_animations.dart'; 
 import 'package:liquid_progress_indicator_v2/liquid_progress_indicator.dart';
-import 'dart:math'; // For sin, pi, and Random
+import 'dart:math'; 
 
 class MainDashboardPage extends StatefulWidget {
   final List<String> hubIds;
@@ -43,51 +40,29 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
     if (widget.hubIds.isNotEmpty) {
       _listenToHubStream(widget.hubIds[0]);
     }
-
-
-
     _initAndSaveFcmToken();
-
   }
-
-
 
   Future<void> _initAndSaveFcmToken() async {
     try {
-
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        print("FCM Save Error: User is null. Cannot save token.");
-        return;
-      }
+      if (user == null) return;
       final uid = user.uid;
 
-
       final fcmToken = await FirebaseMessaging.instance.getToken();
-
-      if (fcmToken == null) {
-        print("FCM Save Error: Device token is null.");
-        return;
-      }
-
-      print("FCM Token Acquired: $fcmToken");
-
+      if (fcmToken == null) return;
 
       final userDocRef = FirebaseFirestore.instance.collection('users').doc(uid);
-
 
       await userDocRef.set({
         'fcmToken': fcmToken,
         'fcmTokenLastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      print("--- FCM Token Successfully Saved to Firestore ---");
     } catch (e) {
-      print("---!!! ERROR SAVING FCM TOKEN !!!---");
-      print(e.toString());
+      print(e);
     }
   }
-
 
   void _listenToHubStream(String hubId) {
     if (hubId == "DEMO_HUB") {
@@ -102,7 +77,6 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
       });
     }
   }
-
 
   void _navigateToSettings() {
     String currentHubId = widget.hubIds[_currentPageIndex];
@@ -136,7 +110,6 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +212,6 @@ class _MainDashboardPageState extends State<MainDashboardPage> {
   }
 }
 
-
 class SingleHubDashboard extends StatefulWidget {
   final String hubId;
 
@@ -258,6 +230,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
   bool _lowGasWarningEnabled = true;
   DateTime? _lastLowGasNotificationTime;
   late final String _lastLowGasTimeKey;
+  bool _isLoading = false; 
 
   @override
   void initState() {
@@ -329,40 +302,77 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
 
   Future<void> _recalibrateMeter() async {
     if (widget.hubId == "DEMO_HUB") {
-      showCustomToast(context, "Recalibrate disabled in Demo Mode",
-          isError: true);
+      showCustomToast(context, "Recalibrate disabled in Demo Mode", isError: true);
       return;
     }
+
+    setState(() => _isLoading = true);
+
     try {
+      await _firestore.collection('hubs').doc(widget.hubId).update({
+        'gasLevel': 100.0,
+        'dailyGasBudget': 0.0,
+        'valveOn': true,
+      });
+
+      DocumentSnapshot hubDoc = await _firestore.collection('hubs').doc(widget.hubId).get();
+      
+      double currentGrossWeight = 0.0;
+      double emptyCylinderWeight = 4700.0; 
+      
+      if (hubDoc.exists) {
+        var data = hubDoc.data() as Map<String, dynamic>;
+        if (data.containsKey('gasWeight')) {
+          var gw = data['gasWeight'];
+          if (gw is int) currentGrossWeight = gw.toDouble();
+          else if (gw is double) currentGrossWeight = gw;
+        } 
+      }
+
+      double netGasWeight = currentGrossWeight - emptyCylinderWeight;
+      if (netGasWeight < 0) netGasWeight = 0;
+
+      String dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
       await _firestore
           .collection('hubs')
           .doc(widget.hubId)
-          .update({'gasLevel': 100.0});
-      showCustomToast(context, "Meter reset to 100%");
+          .collection('cylinder_events')
+          .add({ 
+        'event': 'New Cylinder',
+        'date': dateStr,
+        'weight': netGasWeight, 
+        'gross_weight': currentGrossWeight, 
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        showCustomToast(context, "New Cylinder Connected (Net: ${netGasWeight.toInt()}g)");
+      }
 
       final prefs = await SharedPreferences.getInstance();
       prefs.remove(_lastLowGasTimeKey);
       if (mounted) setState(() => _lastLowGasNotificationTime = null);
+
     } catch (e) {
-      showCustomToast(context, "Error resetting meter: $e", isError: true);
+      if (mounted) {
+        showCustomToast(context, "Error: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
-
 
   void _showRecalibrateDialog() {
     showDialog(
       context: context,
       builder: (context) => BackdropFilter(
-
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
-
           backgroundColor: Colors.black.withOpacity(0.75),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-
             side: BorderSide(
                 color: Colors.white.withOpacity(0.7), width: 1.5),
           ),
@@ -373,16 +383,16 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
               "Did you just connect a full gas cylinder? This will reset the meter to 100%.",
               style: GoogleFonts.inter(color: Colors.white70)),
           actionsPadding:
-              const EdgeInsets.fromLTRB(24, 0, 24, 20), // Better spacing
+              const EdgeInsets.fromLTRB(24, 0, 24, 20),
           actions: [
-
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.15), // Light glass
+                backgroundColor: Colors.white.withOpacity(0.15),
                 elevation: 0,
-                foregroundColor: Colors.white, // White text
-                side: BorderSide(color: Colors.white.withOpacity(0.25)), // Subtle border
+                foregroundColor: Colors.white,
+                side: BorderSide(
+                    color: Colors.white.withOpacity(0.25)),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -390,12 +400,10 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
               child: const Text("No",
                   style: TextStyle(fontWeight: FontWeight.w500)),
             ),
-
-
             ElevatedButton(
-              onPressed: () {
-                _recalibrateMeter();
+              onPressed: _isLoading ? null : () { 
                 Navigator.pop(context);
+                _recalibrateMeter();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade400,
@@ -412,8 +420,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
   }
-
-
 
   Widget _buildAnimatedBackground() {
     final tween1 = TweenSequence([
@@ -458,7 +464,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                 gradient: LinearGradient(
                   colors: [
                     color1 ?? const Color(0xFF0A1931),
-                    const Color(0xFF1A202C), // Dark center color
+                    const Color(0xFF1A202C),
                     color2 ?? const Color(0xFF0A2342),
                   ],
                   begin: Alignment.topLeft,
@@ -471,7 +477,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       },
     );
   }
-
 
   BoxDecoration _glassmorphismCardDecoration() {
     return BoxDecoration(
@@ -506,18 +511,14 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     );
   }
 
-
-
   Path _buildGasCylinderPath(Size size) {
     final double w = size.width;
     final double h = size.height;
     final double neckWidth = w * 0.35;
     final double neckHeight = h * 0.1;
-    final double bodyRadius = w * 0.25; // Bottom body curvature
-    final double topBodyRadius = w * 0.15; // Top body curvature
-    final double bodyTop =
-        neckHeight + (h * 0.05); // Y-position where neck meets body
-
+    final double bodyRadius = w * 0.25;
+    final double topBodyRadius = w * 0.15;
+    final double bodyTop = neckHeight + (h * 0.05);
 
     final Path bodyPath = Path();
     bodyPath.addRRect(
@@ -530,7 +531,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
 
-
     final Path neckPath = Path();
     neckPath.addRRect(
       RRect.fromRectAndCorners(
@@ -542,24 +542,22 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
       ),
     );
 
-
     final Path combinedPath = Path.from(bodyPath);
     combinedPath.addPath(neckPath, Offset.zero);
 
-    return combinedPath; // Return the single combined path
+    return combinedPath;
   }
-
 
   @override
   Widget build(BuildContext context) {
     bool isDemoMode = (widget.hubId == "DEMO_HUB");
 
     if (isDemoMode) {
-      double demoGasLevel = 17.0; // Updated to match the image
+      double demoGasLevel = 17.0;
       _checkGasLevelAndNotify(demoGasLevel);
       return _buildDashboardUI(
         gasLevel: demoGasLevel,
-        isValveOn: false, // Updated to match the image
+        isValveOn: false,
         isDemoMode: true,
       );
     }
@@ -630,7 +628,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
 
     return Stack(
       children: [
-        _buildAnimatedBackground(), // Layer 1: Animated Aura BG
+        _buildAnimatedBackground(),
 
         SafeArea(
           child: Padding(
@@ -639,7 +637,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
             child: Column(
               children: [
                 const Spacer(flex: 1),
-
 
                 SizedBox(
                   height: 300,
@@ -651,7 +648,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
 
                       return Stack(
                         children: [
-
                           ClipPath(
                             clipper: _CylinderClipper(cylinderPath),
                             child: Container(
@@ -660,14 +656,13 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.white.withOpacity(0.25), // Top
-                                    Colors.white.withOpacity(0.1), // Bottom
+                                    Colors.white.withOpacity(0.25),
+                                    Colors.white.withOpacity(0.1),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-
 
                           ClipPath(
                             clipper: _CylinderClipper(cylinderPath),
@@ -680,7 +675,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                               ),
                             ),
                           ),
-
 
                           LiquidCustomProgressIndicator(
                             value: gasLevel / 100,
@@ -707,9 +701,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                   ),
                 ).animate().scale(delay: 200.ms, duration: 600.ms),
 
-
                 const Spacer(flex: 1),
-
 
                 Container(
                   padding:
@@ -726,7 +718,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                   ]),
                 ).animate().fade(delay: 500.ms).slideY(begin: 0.5),
                 const SizedBox(height: 40),
-
 
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20.0),
@@ -776,7 +767,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                 ).animate().fade(delay: 600.ms).slideY(begin: 0.5),
                 const SizedBox(height: 20),
 
-
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -789,19 +779,31 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-
-                    onPressed: isDemoMode
-                        ? () => showCustomToast(context, "Disabled in Demo Mode",
-                            isError: true)
+                    onPressed: (isDemoMode || _isLoading)
+                        ? () => isDemoMode 
+                            ? showCustomToast(context, "Disabled in Demo Mode", isError: true)
+                            : null
                         : () => _showRecalibrateDialog(),
-                    icon: const Icon(Icons.refresh, color: Colors.blue),
-                    label: Text("Connected a New Cylinder?",
+                    icon: _isLoading 
+                      ? const SizedBox(
+                          width: 20, height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                      : const Icon(Icons.refresh, color: Colors.blue),
+                    label: Text(
+                        _isLoading ? "Processing..." : "Connect New Cylinder",
                         style: GoogleFonts.inter(
                             color: Colors.blue.shade300,
                             fontSize: 16,
                             fontWeight: FontWeight.w600)),
                   ),
                 ).animate().fade(delay: 700.ms).slideY(begin: 0.5),
+
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _simulateGasUsage, 
+                  child: Text("Test: Simulate Gas Usage (Click to drop 50g)", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12))
+                ),
+
                 const Spacer(flex: 1),
               ],
             ),
@@ -811,8 +813,6 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     );
   }
 }
-
-
 
 class _VaporAnimation extends StatefulWidget {
   final Size size;
@@ -827,61 +827,46 @@ class _VaporAnimation extends StatefulWidget {
   State<_VaporAnimation> createState() => _VaporAnimationState();
 }
 
-
 class _VaporPuffModel {
   late Offset position;
   late double size;
   late double initialSize;
   late double maxOpacity;
-  late double life; // 0.0 (birth) to 1.0 (death)
+  late double life;
   late double wobbleFrequency;
   late double initialHorizontalOffset;
-
   late double lifeSpanFactor;
 
   _VaporPuffModel(Size bounds, Random random) {
     life = 0.0;
-    initialSize = random.nextDouble() * 20 + 30; // 30 to 50px
+    initialSize = random.nextDouble() * 20 + 30;
     size = initialSize;
-    maxOpacity = random.nextDouble() * 0.1 + 0.1; // 10% to 20%
-    wobbleFrequency = random.nextDouble() * 2 + 2; // 2 to 4
+    maxOpacity = random.nextDouble() * 0.1 + 0.1;
+    wobbleFrequency = random.nextDouble() * 2 + 2;
     initialHorizontalOffset = random.nextDouble() * bounds.width;
-    position = Offset(initialHorizontalOffset, bounds.height); // Start at the bottom
-    lifeSpanFactor = random.nextDouble() * 0.4 + 0.8; // 0.8s to 1.2s
+    position = Offset(initialHorizontalOffset, bounds.height);
+    lifeSpanFactor = random.nextDouble() * 0.4 + 0.8;
   }
 
-
   void update(double deltaTime, Size bounds) {
-
     life += (deltaTime / 4) * lifeSpanFactor;
-
-
-    position = position.translate(0, -20 * deltaTime); // Move up 20 pixels/sec
-
-
+    position = position.translate(0, -20 * deltaTime);
     final wobble = sin(life * wobbleFrequency * pi) * bounds.width * 0.1;
     position = Offset(initialHorizontalOffset + wobble, position.dy);
-
-
     size = initialSize + (life * 30);
   }
 
   bool isDead() => life >= 1.0;
 
   double getOpacity() {
-    if (life < 0.1) {
-      return (life / 0.1) * maxOpacity; // Fade in
-    }
-    if (life > 0.8) {
-      return ((1.0 - life) / 0.2) * maxOpacity; // Fade out
-    }
+    if (life < 0.1) return (life / 0.1) * maxOpacity;
+    if (life > 0.8) return ((1.0 - life) / 0.2) * maxOpacity;
     return maxOpacity;
   }
 }
 
-
 class _VaporAnimationState extends State<_VaporAnimation>
-    with SingleTickerProviderStateMixin { // We need this for the AnimationController
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<_VaporPuffModel> particles = [];
   final Random random = Random();
@@ -889,16 +874,11 @@ class _VaporAnimationState extends State<_VaporAnimation>
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1), // Duration doesn't matter, it just ticks
+      duration: const Duration(seconds: 1),
     );
-
-
     _controller.addListener(_updateParticles);
-    
-
     _controller.repeat();
   }
 
@@ -909,20 +889,13 @@ class _VaporAnimationState extends State<_VaporAnimation>
   }
 
   void _updateParticles() {
-
     setState(() {
-
       particles.removeWhere((p) => p.isDead());
-
-
-
-      const double deltaTime = 0.016; // 60fps
+      const double deltaTime = 0.016;
       for (var particle in particles) {
         particle.update(deltaTime, widget.size);
       }
-
-
-      if (random.nextDouble() < 0.03) { // 3% chance per frame to spawn
+      if (random.nextDouble() < 0.03) {
         particles.add(_VaporPuffModel(widget.size, random));
       }
     });
@@ -930,8 +903,6 @@ class _VaporAnimationState extends State<_VaporAnimation>
 
   @override
   Widget build(BuildContext context) {
-
-
     return CustomPaint(
       painter: _VaporPainter(particles),
       size: widget.size,
@@ -939,11 +910,10 @@ class _VaporAnimationState extends State<_VaporAnimation>
   }
 }
 
-
 class _VaporPainter extends CustomPainter {
   final List<_VaporPuffModel> particles;
   final Paint particlePaint = Paint();
-  
+
   _VaporPainter(this.particles);
 
   @override
@@ -952,19 +922,15 @@ class _VaporPainter extends CustomPainter {
       final opacity = particle.getOpacity();
       if (opacity <= 0) continue;
 
-
       final gradient = RadialGradient(
         colors: [
-          Colors.white.withOpacity(opacity * 0.5), // Center
-          Colors.white.withOpacity(0.0), // Edge
+          Colors.white.withOpacity(opacity * 0.5),
+          Colors.white.withOpacity(0.0),
         ],
       );
 
-
-      particlePaint.shader = gradient.createShader(
-        Rect.fromCircle(center: particle.position, radius: particle.size / 2)
-      );
-
+      particlePaint.shader = gradient.createShader(Rect.fromCircle(
+          center: particle.position, radius: particle.size / 2));
 
       canvas.drawCircle(particle.position, particle.size / 2, particlePaint);
     }
@@ -974,12 +940,8 @@ class _VaporPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-
-
-
 class _CylinderClipper extends CustomClipper<Path> {
   final Path path;
-  
 
   _CylinderClipper(this.path);
 

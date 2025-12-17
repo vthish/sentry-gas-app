@@ -7,7 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class MyUsageStoryPage extends StatefulWidget {
-  final String currentHubId; // E.g., "SENTRY_HUB_V1"
+  final String currentHubId;
   const MyUsageStoryPage({super.key, required this.currentHubId});
 
   @override
@@ -32,7 +32,6 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     super.dispose();
   }
 
-  // --- Background Animation (Unchanged) ---
   BoxDecoration _glassmorphismDecoration() {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -118,51 +117,55 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- TAB 1: Real-time Weekly Data ---
+  // --- TAB 1: Weekly Usage ---
   Widget _buildThisWeekTab() {
     return StreamBuilder<QuerySnapshot>(
-      // Arduino writes to hubs/{ID}/history/{YYYY-MM-DD}
-      stream: _db.collection('hubs').doc(widget.currentHubId).collection('history')
+      // Changed sorting to 'date' instead of timestamp
+      stream: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
           .orderBy('date', descending: true)
-          .limit(7)
+          .limit(30)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text("No usage data yet.", style: GoogleFonts.inter(color: Colors.white70)));
-        }
-
-        // Process Data
         List<double> weeklyUsage = List.filled(7, 0.0);
         List<String> days = List.filled(7, "");
         double totalUsageGrams = 0;
 
-        // Get last 7 days dynamically
         DateTime now = DateTime.now();
-        for (int i = 0; i < 7; i++) {
-          DateTime d = now.subtract(Duration(days: i));
-          String dateKey = DateFormat('yyyy-MM-dd').format(d);
-          String dayName = DateFormat('E').format(d); // Mon, Tue...
-          days[i] = dayName;
 
-          // Find matching doc
-          var doc = snapshot.data!.docs.firstWhere(
-            (element) => element.id == dateKey,
-            orElse: () => snapshot.data!.docs.first, // Dummy fallback, ignored below
-          );
-          
-          if (doc.id == dateKey) {
-            double usage = (doc['usage'] ?? 0).toDouble();
-            weeklyUsage[i] = usage;
-            totalUsageGrams += usage;
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+           for (int i = 0; i < 7; i++) {
+            DateTime d = now.subtract(Duration(days: i));
+            String dateKey = DateFormat('yyyy-MM-dd').format(d);
+            String dayName = DateFormat('E').format(d);
+            days[i] = dayName;
+
+            try {
+              var docList = snapshot.data!.docs.where((element) {
+                var data = element.data() as Map<String, dynamic>;
+                return data['date'] == dateKey && (data.containsKey('usage') || data['event'] == 'Daily Usage');
+              });
+
+              if (docList.isNotEmpty) {
+                var doc = docList.first;
+                var data = doc.data() as Map<String, dynamic>;
+                var val = data['usage'];
+                double usage = 0.0;
+                if (val is int) usage = val.toDouble();
+                else if (val is double) usage = val;
+                
+                weeklyUsage[i] = usage;
+                totalUsageGrams += usage;
+              }
+            } catch (e) {
+              weeklyUsage[i] = 0.0;
+            }
           }
+        } else {
+           for (int i = 0; i < 7; i++) {
+             DateTime d = now.subtract(Duration(days: i));
+             days[i] = DateFormat('E').format(d);
+           }
         }
-        
-        // Reverse to show Mon -> Sun order if preferred, but here keeping Today first or sorting
-        // Let's keep Today at index 0 for the list, but for Chart maybe reverse? 
-        // For simplicity, let's map index 0 (Today) to the list directly.
 
         final double totalUsageKg = totalUsageGrams / 1000;
         final double dailyAverageGrams = weeklyUsage.any((e) => e > 0) 
@@ -197,8 +200,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                       final color = liquidPalette[index % liquidPalette.length];
                       final bool isTouched = (index == _touchedIndex);
                       final double radius = isTouched ? 70.0 : 60.0;
-                      // Show small value if 0 to make chart visible? Or just 0.
-                      double val = weeklyUsage[index] == 0 ? 0.1 : weeklyUsage[index]; 
+                      double val = weeklyUsage[index] <= 0 ? 0.001 : weeklyUsage[index]; 
 
                       return PieChartSectionData(
                         value: val,
@@ -216,7 +218,9 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                   ),
                 ),
               ).animate().scale(),
+              
               const SizedBox(height: 30),
+              
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: _glassmorphismDecoration(),
@@ -233,7 +237,9 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                   ],
                 ),
               ).animate().fade().slideY(begin: 0.2),
+              
               const SizedBox(height: 30),
+              
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -258,36 +264,48 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- TAB 2: Monthly Data (Aggregated from History) ---
+  // --- TAB 2: Monthly Usage ---
   Widget _buildMonthlyListTab() {
     return FutureBuilder<QuerySnapshot>(
-      // Fetch last 180 days (approx 6 months)
-      future: _db.collection('hubs').doc(widget.currentHubId).collection('history')
-          .orderBy('date', descending: true).limit(180).get(),
+      // Changed sorting to 'date'
+      future: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
+          .orderBy('date', descending: true).limit(100).get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (!snapshot.hasData) return Center(child: Text("No monthly data", style: GoogleFonts.inter(color: Colors.white70)));
-
-        // Aggregate by Month
+        
         Map<String, double> monthlyData = {};
-        for (var doc in snapshot.data!.docs) {
-          // Date format YYYY-MM-DD
-          String dateStr = doc['date']; 
-          DateTime date = DateTime.parse(dateStr);
-          String monthKey = DateFormat('MMMM yyyy').format(date); // "October 2025"
-          
-          double usage = (doc['usage'] ?? 0).toDouble();
-          if (monthlyData.containsKey(monthKey)) {
-            monthlyData[monthKey] = monthlyData[monthKey]! + usage;
-          } else {
-            monthlyData[monthKey] = usage;
+        
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            var data = doc.data() as Map<String, dynamic>;
+            
+            // Check for Usage
+            if (!data.containsKey('usage')) continue;
+            if (!data.containsKey('date')) continue;
+
+            String dateStr = data['date']; 
+            try {
+              DateTime date = DateTime.parse(dateStr);
+              String monthKey = DateFormat('MMMM yyyy').format(date);
+              
+              var val = data['usage'];
+              double usage = 0.0;
+              if (val is int) usage = val.toDouble();
+              else if (val is double) usage = val;
+
+              if (monthlyData.containsKey(monthKey)) {
+                monthlyData[monthKey] = monthlyData[monthKey]! + usage;
+              } else {
+                monthlyData[monthKey] = usage;
+              }
+            } catch (e) {
+              // Ignore
+            }
           }
         }
 
         List<MapEntry<String, double>> sortedList = monthlyData.entries.toList();
-        // Since we fetched descending, the map keys should roughly be in order, but let's rely on list order
         
-        double totalKg = sortedList.fold(0, (sum, item) => sum + item.value) / 1000;
+        double totalKg = sortedList.fold(0.0, (sum, item) => sum + item.value) / 1000;
         double avgKg = sortedList.isNotEmpty ? totalKg / sortedList.length : 0;
 
         return Column(
@@ -309,7 +327,9 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
               ).animate().fade().slideY(begin: 0.2),
             ),
             Expanded(
-              child: ListView.separated(
+              child: sortedList.isEmpty 
+              ? Center(child: Text("Waiting for usage data...", style: GoogleFonts.inter(color: Colors.white38)))
+              : ListView.separated(
                 padding: const EdgeInsets.all(24.0),
                 itemCount: sortedList.length,
                 separatorBuilder: (context, index) => const Divider(color: Colors.white10),
@@ -332,59 +352,76 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- TAB 3: Cylinder History (Events) ---
+  // --- TAB 3: Full History (THE FIX IS HERE) ---
   Widget _buildHistoryListTab() {
     return StreamBuilder<QuerySnapshot>(
-      // Arduino writes to hubs/{ID}/cylinder_events
+      // FIX: Changed sorting to 'date' instead of 'timestamp'
+      // This is crucial because usage records from Arduino don't have timestamp
       stream: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
-          .orderBy('date', descending: true).snapshots(),
+          .orderBy('date', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         
-        var docs = snapshot.data?.docs ?? [];
+        var allDocs = snapshot.data?.docs ?? [];
         
-        return Column(
-          children: [
-             Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: _glassmorphismDecoration(),
-                child: Column(
-                  children: [
-                    Text("Cylinder Replacements",
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 10),
-                    Text("Total cylinders recorded: ${docs.length}",
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 16)),
-                  ],
+        if (allDocs.isEmpty) {
+          return Center(child: Text("No history found.", style: GoogleFonts.inter(color: Colors.white38)));
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(24.0),
+          itemCount: allDocs.length,
+          separatorBuilder: (context, index) => const Divider(color: Colors.white10),
+          itemBuilder: (context, index) {
+            var data = allDocs[index].data() as Map<String, dynamic>;
+            String date = data['date'] ?? 'Unknown';
+            
+            // --- SCENARIO 1: Usage Record ---
+            // We check for 'usage' key OR if event name is 'Daily Usage'
+            if (data.containsKey('usage') || (data['event'] == 'Daily Usage')) {
+               double usage = 0.0;
+               if (data.containsKey('usage')) {
+                 var uVal = data['usage'];
+                 if (uVal is int) usage = uVal.toDouble();
+                 else if (uVal is double) usage = uVal;
+               }
+
+               return ListTile(
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withOpacity(0.2),
+                  child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 20),
                 ),
-              ).animate().fade().slideY(begin: 0.2),
-            ),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(24.0),
-                itemCount: docs.length,
-                separatorBuilder: (context, index) => const Divider(color: Colors.white10),
-                itemBuilder: (context, index) {
-                  var data = docs[index].data() as Map<String, dynamic>;
-                  String date = data['date'] ?? 'Unknown';
-                  double weight = (data['weight'] ?? 0).toDouble();
-                  
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    leading: const Icon(Icons.history_toggle_off, color: Colors.white54),
-                    title: Text("New Cylinder: $date",
-                        style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
-                    subtitle: Text("Initial Weight: ${(weight/1000).toStringAsFixed(1)} kg",
-                        style: GoogleFonts.inter(color: Colors.white70)),
-                  ).animate().fade(delay: (index * 100).ms).slideX(begin: 0.2);
-                },
-              ),
-            ),
-          ],
+                title: Text("Daily Usage",
+                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
+                subtitle: Text(date, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                trailing: Text("-${(usage).toStringAsFixed(0)} g",
+                    style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 15)),
+              ).animate().fade().slideX();
+            } 
+            
+            // --- SCENARIO 2: New Cylinder Record ---
+            else {
+              double weight = 0.0;
+              if (data.containsKey('weight')) {
+                  var wVal = data['weight'];
+                  if (wVal is int) weight = wVal.toDouble();
+                  else if (wVal is double) weight = wVal;
+              }
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue.withOpacity(0.2),
+                  child: const Icon(Icons.propane_tank, color: Colors.blueAccent, size: 20),
+                ),
+                title: Text("New Cylinder",
+                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
+                subtitle: Text(date, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                trailing: Text("+${(weight/1000).toStringAsFixed(1)} kg",
+                    style: GoogleFonts.inter(color: Colors.greenAccent, fontWeight: FontWeight.w600, fontSize: 15)),
+              ).animate().fade().slideX();
+            }
+          },
         );
       },
     );
