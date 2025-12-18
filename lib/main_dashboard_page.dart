@@ -559,6 +559,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
         gasLevel: demoGasLevel,
         isValveOn: false,
         isDemoMode: true,
+        isGasLeak: false, // No leaks in demo
       );
     }
 
@@ -578,6 +579,8 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
             snapshot.data!.data() as Map<String, dynamic>;
 
         double gasLevel = hubData['gasLevel']?.toDouble() ?? 0.0;
+        // Read Gas Leak Status (Default to false if null)
+        bool isGasLeak = hubData['gasLeak'] ?? false; 
 
         _checkGasLevelAndNotify(gasLevel);
 
@@ -585,12 +588,22 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
           gasLevel: gasLevel,
           isValveOn: hubData['valveOn'] ?? false,
           isDemoMode: false,
+          isGasLeak: isGasLeak, // Pass gas leak status
         );
       },
     );
   }
 
-  Map<String, dynamic> _getStatusData(double gasLevel) {
+  Map<String, dynamic> _getStatusData(double gasLevel, bool isGasLeak) {
+    // Priority: Gas Leak first
+    if (isGasLeak) {
+      return {
+        'text': "Status: GAS LEAK DETECTED!",
+        'color': Colors.red.shade600,
+        'icon': Icons.warning_rounded,
+      };
+    }
+
     if (gasLevel <= 20) {
       return {
         'text': "Status: Gas is getting low",
@@ -616,15 +629,18 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
     required double gasLevel,
     required bool isValveOn,
     required bool isDemoMode,
+    required bool isGasLeak,
   }) {
-    final statusData = _getStatusData(gasLevel);
+    final statusData = _getStatusData(gasLevel, isGasLeak);
     final statusText = statusData['text'] as String;
     final statusColor = statusData['color'] as Color;
     final statusIcon = statusData['icon'] as IconData;
 
-    final Color liquidColor = gasLevel < 20
+    final Color liquidColor = isGasLeak
+      ? Colors.red.shade700 // Dark Red for leak
+      : (gasLevel < 20
         ? Colors.red.shade400
-        : (gasLevel < 50 ? Colors.orange.shade400 : Colors.green.shade400);
+        : (gasLevel < 50 ? Colors.orange.shade400 : Colors.green.shade400));
 
     return Stack(
       children: [
@@ -739,28 +755,42 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                                           fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   Text(
-                                      isValveOn
+                                      // Logic to display Locked if Gas Leak
+                                      isGasLeak 
+                                        ? "Valve Locked (Leak)"
+                                        : (isValveOn
                                           ? "Currently ON"
-                                          : "Currently OFF",
+                                          : "Currently OFF"),
                                       style: GoogleFonts.inter(
-                                          color: isValveOn
+                                          color: isGasLeak
+                                            ? Colors.grey // Gray out if locked
+                                            : (isValveOn
                                               ? Colors.green.shade300
-                                              : Colors.red.shade300,
+                                              : Colors.red.shade300),
                                           fontSize: 14))
                                 ]),
                             Transform.scale(
                                 scale: 1.2,
                                 child: Switch(
-                                    value: isValveOn,
-                                    onChanged: (newValue) => isDemoMode
-                                        ? showCustomToast(
-                                            context, "Disabled in Demo Mode",
-                                            isError: true)
-                                        : _updateValveStatus(newValue),
+                                    // If Gas Leak, force value to FALSE
+                                    value: isGasLeak ? false : isValveOn,
+                                    onChanged: (newValue) {
+                                      if (isDemoMode) {
+                                        showCustomToast(context, "Disabled in Demo Mode", isError: true);
+                                      } else if (isGasLeak) {
+                                        // Lock Logic: Do not allow enabling
+                                        showCustomToast(context, "Cannot open valve! Gas leak detected.", isError: true);
+                                      } else {
+                                        _updateValveStatus(newValue);
+                                      }
+                                    },
                                     activeColor: Colors.green,
-                                    inactiveTrackColor:
-                                        Colors.red.shade900.withOpacity(0.5),
-                                    inactiveThumbColor: Colors.red.shade300)),
+                                    inactiveTrackColor: isGasLeak 
+                                      ? Colors.grey.withOpacity(0.5) // Gray out track if locked
+                                      : Colors.red.shade900.withOpacity(0.5),
+                                    inactiveThumbColor: isGasLeak 
+                                      ? Colors.grey // Gray out thumb if locked
+                                      : Colors.red.shade300)),
                           ]),
                     ),
                   ),
@@ -798,12 +828,7 @@ class _SingleHubDashboardState extends State<SingleHubDashboard> {
                   ),
                 ).animate().fade(delay: 700.ms).slideY(begin: 0.5),
 
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _simulateGasUsage, 
-                  child: Text("Test: Simulate Gas Usage (Click to drop 50g)", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12))
-                ),
-
+                // Removed the Dummy Simulation Button
                 const Spacer(flex: 1),
               ],
             ),

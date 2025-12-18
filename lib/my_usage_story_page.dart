@@ -79,6 +79,14 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
+  // Helper to determine color based on usage amount
+  Color _getUsageColor(double usage) {
+    if (usage <= 0) return Colors.white54;
+    if (usage < 100) return Colors.greenAccent; // Low usage
+    if (usage < 300) return Colors.orangeAccent; // Medium usage
+    return Colors.redAccent; // High usage
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,11 +102,12 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
         ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.blue,
-          labelColor: Colors.blue,
+          indicatorColor: Colors.cyanAccent,
+          indicatorWeight: 3,
+          labelColor: Colors.cyanAccent,
           unselectedLabelColor: Colors.white54,
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          tabs: const [Tab(text: "This Week"), Tab(text: "Monthly"), Tab(text: "History")],
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
+          tabs: const [Tab(text: "Week"), Tab(text: "Month"), Tab(text: "Full History")],
         ),
       ),
       body: Stack(
@@ -117,10 +126,9 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- TAB 1: Weekly Usage ---
+  // --- TAB 1: WEEKLY ---
   Widget _buildThisWeekTab() {
     return StreamBuilder<QuerySnapshot>(
-      // Changed sorting to 'date' instead of timestamp
       stream: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
           .orderBy('date', descending: true)
           .limit(30)
@@ -173,8 +181,8 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
             : 0;
 
         final List<Color> liquidPalette = [
-          Colors.blue.shade400, Colors.purple.shade300, Colors.teal.shade300,
-          Colors.pink.shade300, Colors.green.shade300, Colors.cyan.shade400, Colors.orange.shade300,
+          Colors.cyanAccent, Colors.purpleAccent, Colors.tealAccent,
+          Colors.pinkAccent, Colors.greenAccent, Colors.lightBlueAccent, Colors.orangeAccent,
         ];
 
         return SingleChildScrollView(
@@ -182,7 +190,7 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
           child: Column(
             children: [
               SizedBox(
-                height: 200,
+                height: 200, // Reduced height
                 child: PieChart(
                   PieChartData(
                     pieTouchData: PieTouchData(
@@ -199,7 +207,8 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                     sections: List.generate(7, (index) {
                       final color = liquidPalette[index % liquidPalette.length];
                       final bool isTouched = (index == _touchedIndex);
-                      final double radius = isTouched ? 70.0 : 60.0;
+                      // Reduced Radius size (Was 80/65 -> Now 60/50)
+                      final double radius = isTouched ? 60.0 : 50.0;
                       double val = weeklyUsage[index] <= 0 ? 0.001 : weeklyUsage[index]; 
 
                       return PieChartSectionData(
@@ -207,38 +216,42 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                         radius: radius,
                         showTitle: false,
                         gradient: LinearGradient(
-                          colors: [color.withOpacity(0.7), color.withOpacity(1.0)],
+                          colors: [color.withOpacity(0.6), color.withOpacity(1.0)],
                           begin: Alignment.topLeft, end: Alignment.bottomRight,
                         ),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 2),
                       );
                     }),
-                    sectionsSpace: 3,
-                    centerSpaceRadius: 40,
+                    sectionsSpace: 4,
+                    centerSpaceRadius: 40, 
                   ),
                 ),
-              ).animate().scale(),
+              ).animate().scale(duration: 600.ms),
               
               const SizedBox(height: 30),
               
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 decoration: _glassmorphismDecoration(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text("Total used (7 days): ${totalUsageKg.toStringAsFixed(2)}kg",
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                    Text("Total Used (7 Days)", style: GoogleFonts.inter(color: Colors.white54, fontSize: 14), textAlign: TextAlign.center),
+                    const SizedBox(height: 4),
+                    Text("${totalUsageKg.toStringAsFixed(2)} kg",
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center),
-                    const SizedBox(height: 10),
-                    Text("Daily average: ${dailyAverageGrams.toStringAsFixed(0)}g",
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 16),
+                    const SizedBox(height: 12),
+                    Divider(color: Colors.white.withOpacity(0.1)),
+                    const SizedBox(height: 12),
+                    Text("Daily Average: ${dailyAverageGrams.toStringAsFixed(0)} g",
+                        style: GoogleFonts.inter(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center),
                   ],
                 ),
-              ).animate().fade().slideY(begin: 0.2),
+              ).animate().fade().slideY(begin: 0.3),
               
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
               
               ListView.builder(
                 shrinkWrap: true,
@@ -246,14 +259,37 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
                 itemCount: 7,
                 itemBuilder: (context, index) {
                   final color = liquidPalette[index % liquidPalette.length];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: color.withOpacity(0.2),
-                      child: Text(days[index].isNotEmpty ? days[index][0] : "-", style: GoogleFonts.inter(color: color)),
+                  double usageVal = weeklyUsage[index];
+                  
+                  // Color coding logic
+                  Color usageColor = _getUsageColor(usageVal);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(12)
                     ),
-                    title: Text(days[index].isNotEmpty ? "${days[index]} (Last 7 days)" : "Data N/A", style: GoogleFonts.inter(color: Colors.white)),
-                    trailing: Text("${weeklyUsage[index].toStringAsFixed(0)}g",
-                        style: GoogleFonts.inter(color: Colors.white70, fontWeight: FontWeight.w600)),
+                    child: ListTile(
+                      leading: Container(
+                        width: 40, height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.2),
+                          shape: BoxShape.circle
+                        ),
+                        child: Text(days[index].isNotEmpty ? days[index][0] : "-", style: GoogleFonts.inter(color: color, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(days[index], style: GoogleFonts.inter(color: Colors.white)),
+                      trailing: Text(
+                        "${usageVal.toStringAsFixed(0)} g",
+                        style: GoogleFonts.inter(
+                          color: usageColor, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16
+                        )
+                      ),
+                    ),
                   );
                 },
               ),
@@ -264,99 +300,88 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
     );
   }
 
-  // --- TAB 2: Monthly Usage ---
+  // --- TAB 2: MONTHLY ---
   Widget _buildMonthlyListTab() {
     return FutureBuilder<QuerySnapshot>(
-      // Changed sorting to 'date'
       future: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
           .orderBy('date', descending: true).limit(100).get(),
       builder: (context, snapshot) {
-        
         Map<String, double> monthlyData = {};
         
         if (snapshot.hasData) {
           for (var doc in snapshot.data!.docs) {
             var data = doc.data() as Map<String, dynamic>;
-            
-            // Check for Usage
-            if (!data.containsKey('usage')) continue;
-            if (!data.containsKey('date')) continue;
+            if (!data.containsKey('usage') || !data.containsKey('date')) continue;
 
             String dateStr = data['date']; 
             try {
               DateTime date = DateTime.parse(dateStr);
               String monthKey = DateFormat('MMMM yyyy').format(date);
-              
               var val = data['usage'];
-              double usage = 0.0;
-              if (val is int) usage = val.toDouble();
-              else if (val is double) usage = val;
+              double usage = (val is int) ? val.toDouble() : (val is double ? val : 0.0);
 
-              if (monthlyData.containsKey(monthKey)) {
-                monthlyData[monthKey] = monthlyData[monthKey]! + usage;
-              } else {
-                monthlyData[monthKey] = usage;
-              }
-            } catch (e) {
-              // Ignore
-            }
+              monthlyData[monthKey] = (monthlyData[monthKey] ?? 0.0) + usage;
+            } catch (e) {}
           }
         }
 
         List<MapEntry<String, double>> sortedList = monthlyData.entries.toList();
         
-        double totalKg = sortedList.fold(0.0, (sum, item) => sum + item.value) / 1000;
-        double avgKg = sortedList.isNotEmpty ? totalKg / sortedList.length : 0;
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: _glassmorphismDecoration(),
-                child: Column(
-                  children: [
-                    Text("Monthly Average: ${avgKg.toStringAsFixed(1)}kg",
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 10),
-                    Text("Based on available data", style: GoogleFonts.inter(color: Colors.white70, fontSize: 16)),
-                  ],
+        // Empty State
+        if (sortedList.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.calendar_month_rounded, color: Colors.white24, size: 50),
                 ),
-              ).animate().fade().slideY(begin: 0.2),
-            ),
-            Expanded(
-              child: sortedList.isEmpty 
-              ? Center(child: Text("Waiting for usage data...", style: GoogleFonts.inter(color: Colors.white38)))
-              : ListView.separated(
-                padding: const EdgeInsets.all(24.0),
-                itemCount: sortedList.length,
-                separatorBuilder: (context, index) => const Divider(color: Colors.white10),
-                itemBuilder: (context, index) {
-                  String month = sortedList[index].key;
-                  double kg = sortedList[index].value / 1000;
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    leading: const Icon(Icons.calendar_today, color: Colors.white54),
-                    title: Text(month, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18)),
-                    trailing: Text("${kg.toStringAsFixed(1)} kg",
-                        style: GoogleFonts.inter(color: Colors.blue.shade300, fontSize: 16)),
-                  ).animate().fade(delay: (index * 100).ms).slideX(begin: 0.2);
-                },
+                const SizedBox(height: 16),
+                Text("No monthly data available", style: GoogleFonts.inter(color: Colors.white38)),
+              ],
+            ).animate().fade().scale(),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(24.0),
+          itemCount: sortedList.length,
+          itemBuilder: (context, index) {
+            String month = sortedList[index].key;
+            double kg = sortedList[index].value / 1000;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: _glassmorphismDecoration(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.date_range_rounded, color: Colors.cyanAccent.withOpacity(0.8), size: 28),
+                      const SizedBox(width: 16),
+                      Text(month, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18)),
+                    ],
+                  ),
+                  Text("${kg.toStringAsFixed(1)} kg",
+                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                ],
               ),
-            ),
-          ],
+            ).animate().fade(delay: (index * 100).ms).slideX(begin: 0.2);
+          },
         );
       },
     );
   }
 
-  // --- TAB 3: Full History (THE FIX IS HERE) ---
+  // --- TAB 3: HISTORY WITH TIME ---
   Widget _buildHistoryListTab() {
     return StreamBuilder<QuerySnapshot>(
-      // FIX: Changed sorting to 'date' instead of 'timestamp'
-      // This is crucial because usage records from Arduino don't have timestamp
       stream: _db.collection('hubs').doc(widget.currentHubId).collection('cylinder_events')
           .orderBy('date', descending: true)
           .snapshots(),
@@ -365,62 +390,129 @@ class _MyUsageStoryPageState extends State<MyUsageStoryPage>
         var allDocs = snapshot.data?.docs ?? [];
         
         if (allDocs.isEmpty) {
-          return Center(child: Text("No history found.", style: GoogleFonts.inter(color: Colors.white38)));
+          return Center(child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history_toggle_off, color: Colors.white24, size: 60),
+              const SizedBox(height: 16),
+              Text("No history data yet.", style: GoogleFonts.inter(color: Colors.white38)),
+            ],
+          ));
         }
 
-        return ListView.separated(
+        return ListView.builder(
           padding: const EdgeInsets.all(24.0),
           itemCount: allDocs.length,
-          separatorBuilder: (context, index) => const Divider(color: Colors.white10),
           itemBuilder: (context, index) {
             var data = allDocs[index].data() as Map<String, dynamic>;
-            String date = data['date'] ?? 'Unknown';
             
-            // --- SCENARIO 1: Usage Record ---
-            // We check for 'usage' key OR if event name is 'Daily Usage'
-            if (data.containsKey('usage') || (data['event'] == 'Daily Usage')) {
-               double usage = 0.0;
-               if (data.containsKey('usage')) {
-                 var uVal = data['usage'];
-                 if (uVal is int) usage = uVal.toDouble();
-                 else if (uVal is double) usage = uVal;
-               }
+            // --- TIME LOGIC ---
+            Timestamp? timestamp = data['timestamp'] as Timestamp?;
+            String dateString = data['date'] ?? 'Unknown';
+            
+            DateTime dateTime;
+            String timeDisplay;
 
-               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.orange.withOpacity(0.2),
-                  child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 20),
-                ),
-                title: Text("Daily Usage",
-                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
-                subtitle: Text(date, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                trailing: Text("-${(usage).toStringAsFixed(0)} g",
-                    style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 15)),
-              ).animate().fade().slideX();
-            } 
-            
-            // --- SCENARIO 2: New Cylinder Record ---
-            else {
-              double weight = 0.0;
-              if (data.containsKey('weight')) {
-                  var wVal = data['weight'];
-                  if (wVal is int) weight = wVal.toDouble();
-                  else if (wVal is double) weight = wVal;
-              }
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue.withOpacity(0.2),
-                  child: const Icon(Icons.propane_tank, color: Colors.blueAccent, size: 20),
-                ),
-                title: Text("New Cylinder",
-                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
-                subtitle: Text(date, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                trailing: Text("+${(weight/1000).toStringAsFixed(1)} kg",
-                    style: GoogleFonts.inter(color: Colors.greenAccent, fontWeight: FontWeight.w600, fontSize: 15)),
-              ).animate().fade().slideX();
+            if (timestamp != null) {
+              dateTime = timestamp.toDate();
+              timeDisplay = DateFormat('hh:mm a').format(dateTime); 
+            } else {
+              try { dateTime = DateTime.parse(dateString); } catch(e) { dateTime = DateTime.now(); }
+              timeDisplay = "All Day"; 
             }
+
+            String dayNum = DateFormat('dd').format(dateTime);
+            String monthStr = DateFormat('MMM').format(dateTime).toUpperCase();
+
+            // --- VALUE LOGIC ---
+            bool isUsage = (data.containsKey('usage') || (data['event'] == 'Daily Usage'));
+            double value = 0.0;
+            if (isUsage) {
+               if (data.containsKey('usage')) {
+                 var u = data['usage'];
+                 value = (u is int) ? u.toDouble() : u;
+               }
+            } else {
+               if (data.containsKey('weight')) {
+                 var w = data['weight'];
+                 value = (w is int) ? w.toDouble() : w;
+               }
+            }
+
+            Color cardColor = isUsage ? const Color(0xFF1E293B) : const Color(0xFF064E3B);
+            Color accentColor = isUsage ? Colors.orangeAccent : Colors.greenAccent;
+            IconData icon = isUsage ? Icons.local_fire_department_rounded : Icons.propane_tank_rounded;
+            String title = isUsage ? "Gas Consumed" : "Refill Added";
+            String valueStr = isUsage ? "- ${value.toStringAsFixed(0)} g" : "+ ${(value/1000).toStringAsFixed(2)} kg";
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 65,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.1))
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(dayNum, style: GoogleFonts.inter(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                        Text(monthStr, style: GoogleFonts.inter(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardColor.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: accentColor.withOpacity(0.3), width: 1),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))
+                        ]
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(icon, color: accentColor, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(title, style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.access_time, size: 12, color: Colors.white54),
+                                    const SizedBox(width: 4),
+                                    Text(timeDisplay, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(valueStr, style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fade().slideX();
           },
         );
       },
