@@ -38,5 +38,5 @@
 4. **App Control:** Users can tap the toggle in the app to update the valve state in Firestore, which the ESP32/Arduino reads and executes mechanically.
 
 ## 👨‍💻 Developed By
-**K.V. Venusha Thishan**
+**Venusha Thishan**
 *Full Stack Developer | IoT Innovator*
