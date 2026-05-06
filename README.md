@@ -1,41 +1,41 @@
 <div align="center">
-  <h1>🛡️ Sentry Gas</h1>
+  <h1>🛡️ Sentry Gas - Mobile App</h1>
   <p><b>Advanced IoT Gas Monitoring & Automated Safety System</b></p>
   
-  <img src="https://img.shields.io/badge/Hardware-Arduino%20%7C%20ESP32-blue?style=for-the-badge&logo=arduino" alt="Hardware" />
-  <img src="https://img.shields.io/badge/App-React%20Native-61DAFB?style=for-the-badge&logo=react" alt="React Native" />
-  <img src="https://img.shields.io/badge/Backend-Node.js-339933?style=for-the-badge&logo=nodedotjs" alt="NodeJS" />
+  <img src="https://img.shields.io/badge/App-Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" />
+  <img src="https://img.shields.io/badge/Database-Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase" />
 </div>
 
 <br/>
 
 ## 🚀 Overview
-**Sentry Gas** is a smart IoT solution designed to ensure kitchen safety and monitor gas usage efficiently. It tracks real-time gas levels, maintains detailed usage history, and features an automated fail-safe mechanism that instantly shuts off the gas valve in the event of a leak.
+**Sentry Gas** is a smart IoT solution designed to ensure kitchen safety and monitor gas usage efficiently. This repository contains the **Flutter mobile application** for the system.
+
+🔗 **Hardware & Arduino Firmware Repository:** [sentry-gas-final-arduino_code](https://github.com/vthish/sentry-gas-final-arduino_code)
 
 ## ✨ Key Features
-* **🚨 Leak Detection & Auto-Shutoff:** Instantly detects gas leaks and automatically closes the solenoid valve to prevent accidents.
-* **📱 Remote Control:** Turn the gas supply ON/OFF safely from anywhere using the mobile app.
-* **📊 Usage History & Analytics:** Monitor daily/monthly gas consumption and track the remaining gas volume.
-* **🔔 Real-time Alerts:** Receive instant push notifications for critical events like leaks or low gas levels.
+* **🔐 Secure Login:** Firebase SMS Authentication for quick and secure phone number login.
+* **🚨 Leak Alerts & Auto-Shutoff:** Receive instant push notifications when a gas leak is detected and the system autonomously closes the valve.
+* **🎛️ Remote Control:** Manually turn the gas supply ON/OFF safely from anywhere using the app interface.
+* **📊 Usage History & Analytics:** Monitor real-time remaining gas volume and track daily/monthly consumption patterns.
 
-## 🛠️ System Architecture
+## 🛠️ Software Architecture
 
-### ⚙️ Hardware Components
+### 📱 Mobile App (This Repository)
+* **Framework:** Flutter (Android/iOS support)
+* **Authentication:** Firebase Phone (SMS) Authentication
+* **Database:** Firebase Cloud Firestore (Real-time data synchronization)
+
+### ⚙️ Hardware Integration (External Repo)
 * **Microcontroller:** Arduino / ESP32
-* **Gas Detection:** MQ-5 Gas Sensor
-* **Volume/Weight Tracking:** Load Cell with HX711 Amplifier
-* **Valve Control:** Solenoid Valve & Relay Module
+* **Sensors:** MQ-5 Gas Sensor, Load Cell with HX711
+* The hardware continuously sends telemetry data to Firestore, which the app listens to in real-time.
 
-### 💻 Software Stack
-* **Mobile Application:** Built for Android/iOS (React Native)
-* **Backend API:** Node.js (Handles user authentication and data processing)
-* **Database:** Real-time database for storing usage history and telemetry logs
-
-## 💡 How It Works
-1. **Continuous Monitoring:** The MQ-5 sensor constantly checks the environment for combustible gases. 
-2. **Emergency Response:** If a leak is detected, the system does not wait for user input—the microcontroller instantly triggers the Solenoid Valve to close and sends a high-priority alert to the app.
-3. **Usage Calculation:** The Load Cell accurately measures the cylinder's weight, sending data to the cloud to calculate usage history and predict when a refill is needed.
-4. **User Control:** Users can manually override the valve state (ON/OFF) and view comprehensive analytics through the mobile dashboard.
+## 💡 How The System Works
+1. **User Access:** Users authenticate via SMS OTP and connect to their specific gas monitoring hardware node via Firestore.
+2. **Real-time Monitoring:** The app fetches real-time weight and sensor data from Firestore, calculated by the hardware's load cell.
+3. **Emergency Response:** If the MQ-5 sensor detects a leak, the Arduino closes the solenoid valve instantly and updates the Firestore document. The Flutter app immediately alerts the user.
+4. **App Control:** Users can tap the toggle in the app to update the valve state in Firestore, which the ESP32/Arduino reads and executes mechanically.
 
 ## 👨‍💻 Developed By
 **K.V. Venusha Thishan**
